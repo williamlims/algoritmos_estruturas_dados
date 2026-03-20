@@ -1,0 +1,24 @@
+# Windows executáveis
+*.exe
+build/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+
+# Arquivos objeto
+*.o
+*.obj
+
+# Bibliotecas compiladas
+*.dll
+*.so
+*.dylib
+
+# Arquivos de build
+/build/
+/bin/
+/out/
+
+# Arquivos temporários
+*.log
+*.tmp
