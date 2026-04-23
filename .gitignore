@@ -25,3 +25,7 @@ Makefile
 
 # Referências em texto
 *.pdf
+
+# Executáveis
+btree_program
+btree_program.exe
