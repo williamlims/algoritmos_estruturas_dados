@@ -5,20 +5,13 @@
 template <typename KeyType, int ORDER> // Define que o nó Node terá ordem m=ORDER 
 class BTreeNode {
 public:
-    // Array estático que armazena as chaves do nó
-    KeyType keys[ORDER - 1];  
-    
-    // Quantas chaves temos nesse nó?
-    int n;
-
-    // Array de ponteiros que mapeiam subárvores 
-    BTreeNode* children[ORDER]; 
-
-    bool leaf; // flag
+    KeyType keys[ORDER - 1]; // Array estático que armazena as chaves do nó
+    int n; // Quantas chaves temos nesse nó?
+    BTreeNode* children[ORDER]; // Array de ponteiros que mapeiam subárvores 
 
     // Inicialização do nó com ponteiros nulos
-    BTreeNode(bool isLeaf = true) : n(0), leaf(isLeaf) {
+    BTreeNode() : n(0) {
         for (int i = 0; i < ORDER; i++)
-            children[i] = nullptr;
+            children[i] = 0;
     }
 };     
