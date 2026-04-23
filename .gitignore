@@ -22,3 +22,6 @@ Makefile
 # Arquivos temporários
 *.log
 *.tmp
+
+# Referências em texto
+*.pdf
