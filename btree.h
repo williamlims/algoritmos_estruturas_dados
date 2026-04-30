@@ -1,33 +1,22 @@
 #ifndef BTREE_H
 #define BTREE_H
 
-#include <iostream>
+#include <string>
 
-// Definição da estrutura de dados do nó da árvore
-template <typename KeyType, int ORDER>
-class BTreeNode {
-public:
-    KeyType keys[ORDER - 1];
+const int N = 3;
+
+struct Node {
     int n;
-    BTreeNode* children[ORDER];
-
-    BTreeNode() : n(0) {
-        for (int i = 0; i < ORDER; i++)
-            children[i] = nullptr;
-    }
+    int A[N];      // Filhos
+    int K[N - 1];  // Keys
 };
 
-// B-Tree class declaration and implementation (templates must be in header)
-template <typename KeyType, int ORDER>
-class BTree {
-private:
-    BTreeNode<KeyType, ORDER>* root;
-
-public:
-    BTree() : root(nullptr) {}
-
-    void Insert(KeyType key);
-    void mSearch(KeyType key);
+struct SearchResult {
+    int nodeIndex;
+    int keyIndex;
+    bool found;
 };
 
-#endif
+SearchResult mSearch(const std::string& filename, int rootIndex, int x);
+
+#endif // BTREE_H
