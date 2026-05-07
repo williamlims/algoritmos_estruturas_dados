@@ -3,7 +3,15 @@
 
 #include <iostream>
 
-// Definição da estrutura de dados do nó da árvore
+// Definição do nó em disco
+template <typename KeyType, int ORDER>
+struct NodeRecord {
+    int n;
+    KeyType keys[ORDER - 1];
+    int filhoIdx[ORDER];   // índices, não ponteiros! 0 = nullptr
+};
+
+// Definição da estrutura de dados do nó da árvor
 template <typename KeyType, int ORDER>
 class BTreeNode {
 public:
@@ -11,10 +19,21 @@ public:
     int n;
     BTreeNode* filho[ORDER];
 
+    int filhoIdx[ORDER]; // índice do filho no disco
+    int diskIdx; // índice do nó no disco
+    bool dirty; // registra se nó foi alterado em memória principal e precisa ser alterado em disco
+
     BTreeNode() : n(0) {
         for (int i = 0; i < ORDER; i++)
             filho[i] = nullptr;
     }
+};
+
+template <typename KeyType, int ORDER>
+struct SearchResult {
+    BTreeNode<KeyType, ORDER>* node;
+    int keyIndex;
+    bool found;
 };
 
 // Declaração da estrutura de dados B-Tree
@@ -76,12 +95,22 @@ class BTree {
         // Splita o nó 
         void splitNode(BTreeNode<KeyType, ORDER>* node, BTreeNode<KeyType, ORDER>* pai, int i){ 
             BTreeNode<KeyType, ORDER>* newNode = new BTreeNode<KeyType, ORDER>;
-            newNode->n = ORDER / 2 - 1;
+
+            const int mid = (ORDER - 1) / 2;  
+            node->n    = mid; 
+            newNode->n = ORDER - 2 - mid;  
 
             for (int j = 0; j < newNode->n; j++) // Preenche novo nó até metade dos registros do nó explodido
-                newNode->keys[j] = node->keys[j + ORDER / 2];
+                newNode->keys[j] = node->keys[j + mid + 1];
 
-            node->n = ORDER / 2 - 1; // Desce o nível do nó explodido
+            // transfere filhos da metade direita do nó original pro novo nó
+            // só faz sentido se node não é folha (tem filhos não-nulos)
+            if (node->filho[0] != nullptr) {
+                for (int j = 0; j <= newNode->n; j++) {
+                    newNode->filho[j] = node->filho[j + mid + 1];
+                    node->filho[j + mid + 1] = nullptr;  // limpa pra evitar dois donos
+                }
+            }
             
             // INSERINDO NÓ NOVO COMO FILHO
             for (int j = pai->n; j >= i + 1; j--) // desloca filhos do nó pai para direita para inserir novo filho
@@ -95,15 +124,29 @@ class BTree {
             for (int j = pai->n - 1; j >= i; j--) // desloca chaves dos filhos para direita para inserir novo filho
                 pai->keys[j + 1] = pai->keys[j];
             
-            pai->keys[i] = node->keys[ORDER / 2 - 1]; // Recebe chave que ficou de fora como chave do novo nó
+            pai->keys[i] = node->keys[mid]; // Recebe chave que ficou de fora como chave do novo nó
             pai->n = pai->n + 1; // aumenta em 1 a contagem de filhos daquele nó
 
         }
         // Fim da seção INSERÇÃO DE REGISTRO ////////////////////////////////////
 
         // Procura registro
-        void mSearch(KeyType key){
+        SearchResult<KeyType, ORDER> mSearch(KeyType key) {
+            BTreeNode<KeyType, ORDER>* node = root;
+            BTreeNode<KeyType, ORDER>* pai = nullptr;
+            int i = 0;
 
+            while (node != nullptr) {
+                i = 0;
+                while (i < node->n && key >= node->keys[i]) {
+                    if (key == node->keys[i]) return {node, i, true};
+                    i++;
+                }
+                pai = node;
+                node = node->filho[i];
+            }
+
+            return {pai, i, false};
         }
 
         
