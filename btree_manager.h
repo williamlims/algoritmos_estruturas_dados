@@ -128,7 +128,6 @@ private:
         // node->filho[i] já está como nullptr pelo construtor → lazy load on demand
         return node;
     }
-
 };
 
 #endif
