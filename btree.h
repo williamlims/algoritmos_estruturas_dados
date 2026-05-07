@@ -3,15 +3,7 @@
 
 #include <iostream>
 
-// Definição do nó em disco
-template <typename KeyType, int ORDER>
-struct NodeRecord {
-    int n;
-    KeyType keys[ORDER - 1];
-    int filhoIdx[ORDER];   // índices, não ponteiros! 0 = nullptr
-};
-
-// Definição da estrutura de dados do nó da árvor
+// Definição da estrutura de dados do nó da árvore
 template <typename KeyType, int ORDER>
 class BTreeNode {
 public:
@@ -23,10 +15,21 @@ public:
     int diskIdx; // índice do nó no disco
     bool dirty; // registra se nó foi alterado em memória principal e precisa ser alterado em disco
 
-    BTreeNode() : n(0) {
-        for (int i = 0; i < ORDER; i++)
+    // Construtor:
+    BTreeNode() : n(0), diskIdx(0), dirty(true) {
+        for (int i = 0; i < ORDER; i++) {
             filho[i] = nullptr;
+            filhoIdx[i] = 0;
+        }
     }
+};
+
+// Definição do nó em disco
+template <typename KeyType, int ORDER>
+struct NodeRecord {
+    int n;
+    KeyType keys[ORDER - 1];
+    int filhoIdx[ORDER];   // índices, não ponteiros! 0 = nullptr
 };
 
 template <typename KeyType, int ORDER>
