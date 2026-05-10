@@ -16,10 +16,9 @@ Sempre que criarmos um arquivo .dat, será salvo um .dat.meta que registra o end
 ### Arquivo disk_manager.h
 Interações com o disco são gerenciadas nesse arquivo.
 
-### Arquivo btree_manager.h
-Nesse arquivo estão todas as operações relacionadas ao buffer pool e gestão da árvore B em disco. 
-
 ### Arquivo btree.h
-Definições da árvore de maneira mais legível, implementado em memória primária fazendo carregamentos e deleções via funções do btree_manager.h
+Definições das estruturas de dados da árvore.
 
-A árvore está carregada em memória primária para ser operacionalizada.
+### Arquivo btree_manager.h
+Nesse arquivo estão todas as operações algorítmicas da árvore são implementadas em função pública e relacionadas ao buffer pool e gestão da árvore B em disco em funções privadas voltadas a gerenciamentos. 
+

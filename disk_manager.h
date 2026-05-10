@@ -5,6 +5,8 @@
 #include <fstream>
 #include "btree.h"
 
+// Arquivo gerado via Claude Code
+
 template <typename KeyType, int ORDER>
 class DiskIO {
 public:

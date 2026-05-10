@@ -29,3 +29,17 @@ Makefile
 # Executáveis
 btree_program
 btree_program.exe
+main
+main.dSYM/
+test_load
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+
+# Outputs gerados pela B-Tree
+arvore.dat
+arvore.dat.meta
+arvore.html
