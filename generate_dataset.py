@@ -13,7 +13,7 @@ import random
 from datetime import date, timedelta
 
 # Configuracao padrao (pode ser sobrescrita por argumento CLI)
-DEFAULT_NUM_REGISTROS = 10000
+DEFAULT_NUM_REGISTROS = 1000000
 DEFAULT_OUTPUT = "dataset.csv"
 DEFAULT_SEED = 42
 

@@ -4,7 +4,7 @@
 #include <sstream>
 
 int main() {
-    BTreeManager<int, 8> mgr("arvore.dat");
+    BTreeManager<int, 4> mgr("arvore.dat");
 
     std::ifstream csv("dataset.csv");
     if (!csv) { std::cerr << "Nao abriu dataset.csv\n"; return 1; }
@@ -24,7 +24,7 @@ int main() {
     std::cout << "Inseridos " << total << " registros\n";
 
     // Smoke test de busca
-    for (int alvo : {1, 100, 5000, 9999, 99999}) {
+    for (int alvo : {1, 45, 32, 100002, 200, 10000000, 1000001}) {
         auto res = mgr.mSearch(alvo);
         std::cout << "Busca " << alvo << ": "
                   << (res.found ? "ENCONTRADO" : "nao encontrado") << "\n";

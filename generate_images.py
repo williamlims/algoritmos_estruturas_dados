@@ -375,16 +375,85 @@ def render_html(nodes_visible: dict, nodes_total: dict, positions: dict,
         f.write(html)
 
 
+# -------- Auto-deteccao de ORDER --------
+
+def detect_order(dat_path: str, root_idx: int, candidates=range(2, 33)) -> int:
+    """Tenta varios ORDERs e retorna o que produz uma B-Tree consistente.
+
+    Criterio: parsing valida E o root_idx do .meta eh alcancavel.
+    Em caso de empate (multiplos validos), prefere o que tem maior cobertura
+    (mais nos alcancaveis a partir do root).
+    """
+    file_size = os.path.getsize(dat_path)
+    best = []  # lista de (cobertura, order)
+
+    for order in candidates:
+        record_size = 8 * order
+        if file_size % record_size != 0:
+            continue
+        total_nodes = file_size // record_size
+        if total_nodes == 0 or root_idx > total_nodes:
+            continue
+
+        # Tenta parsing com este ORDER (sem rodar parse_dat porque ele aborta)
+        try:
+            with open(dat_path, "rb") as f:
+                ok = True
+                nodes_local = {}
+                for idx in range(1, total_nodes + 1):
+                    data = f.read(record_size)
+                    if len(data) < record_size:
+                        ok = False
+                        break
+                    up = struct.unpack(f"<{2 * order}i", data)
+                    n = up[0]
+                    if not (0 <= n <= order - 1):
+                        ok = False
+                        break
+                    filho = up[order:2 * order]
+                    if any(c < 0 or c > total_nodes for c in filho):
+                        ok = False
+                        break
+                    nodes_local[idx] = filho
+                if not ok:
+                    continue
+        except Exception:
+            continue
+
+        # Conta cobertura a partir do root
+        visited = set()
+        stack = [root_idx]
+        while stack:
+            cur = stack.pop()
+            if cur == 0 or cur in visited or cur not in nodes_local:
+                continue
+            visited.add(cur)
+            for c in nodes_local[cur]:
+                if c != 0:
+                    stack.append(c)
+
+        best.append((len(visited), order))
+
+    if not best:
+        return None
+    # Maior cobertura vence; empata por menor numero de nos (= maior ORDER)
+    best.sort(key=lambda x: (-x[0], -x[1]))
+    return best[0][1]
+
+
 # -------- CLI --------
 
 def main() -> None:
     p = argparse.ArgumentParser(
         description="Gera HTML interativo (pan/zoom) com a B-Tree persistida em disco."
     )
-    p.add_argument("dat", help="caminho do .dat (binario)")
-    p.add_argument("--order", type=int, default=5, help="ORDER da arvore (default 5)")
+    p.add_argument("dat", nargs="?", default="arvore.dat",
+                   help="caminho do .dat (default: arvore.dat)")
+    p.add_argument("--order", type=int, default=None,
+                   help="ORDER da arvore (default: auto-detecta)")
     p.add_argument("--meta", help="caminho do .meta (default: <dat>.meta)")
-    p.add_argument("-o", "--output", help="arquivo HTML de saida (default: <dat sem .dat>.html)")
+    p.add_argument("-o", "--output",
+                   help="arquivo HTML de saida (default: <dat sem .dat>.html)")
     p.add_argument("--max-depth", type=int, default=None,
                    help="limita a profundidade exibida (default: sem limite)")
     p.add_argument("--root-idx", type=int, default=None,
@@ -403,7 +472,17 @@ def main() -> None:
         out_path = base + ".html"
 
     real_root = parse_meta(meta_path)
-    nodes = parse_dat(args.dat, args.order)
+
+    # Auto-detecta ORDER se nao for passado
+    order = args.order
+    if order is None:
+        order = detect_order(args.dat, real_root)
+        if order is None:
+            sys.exit("erro: nao consegui detectar ORDER automaticamente. "
+                     "Passe --order N manualmente.")
+        print(f"  ORDER detectado: {order}")
+
+    nodes = parse_dat(args.dat, order)
 
     root_idx = args.root_idx if args.root_idx else real_root
 
@@ -428,7 +507,7 @@ def main() -> None:
     visible, truncated = filter_by_depth(root_idx, nodes, args.max_depth)
     positions = compute_layout(root_idx, visible)
 
-    render_html(visible, nodes, positions, root_idx, args.order,
+    render_html(visible, nodes, positions, root_idx, order,
                 args.max_depth, len(reachable_set), truncated,
                 args.dat, out_path)
 
