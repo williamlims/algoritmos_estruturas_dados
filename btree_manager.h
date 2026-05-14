@@ -84,7 +84,7 @@ public:
                 i++;
             }
             pai = node;
-            node = getChild(pai, i);   // ← única mudança
+            node = getChild(pai, i);   // puxa filho da memória caso precise descer a árvore
         }
 
         return {pai, i, false};
