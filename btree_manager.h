@@ -90,10 +90,6 @@ public:
         return {pai, i, false};
     }
 
-    void createBTree(const std::string& filename){
-        
-    }
-
     void deleteRegister(KeyType key){
 
     }
