@@ -171,13 +171,17 @@ private:
     }
 
     // Despeja LRU nao-pinados ate caber em maxCacheSize.
-    // Se todos pinados, retorna sem despejar (soft overflow temporario).
+    // Nunca despeja o front (MRU): e' sempre o no recem-carregado/alocado por
+    // loadNode/allocateNode, que ainda nao foi pinado pelo chamador mas esta
+    // prestes a ser usado. Se todos os candidatos estao pinados ou sao o MRU,
+    // retorna sem despejar (soft overflow temporario).
     void trimCache() {
+        int mru = lruOrder.empty() ? 0 : lruOrder.front();
         auto it = lruOrder.end();
         while ((int)cache.size() > maxCacheSize && it != lruOrder.begin()) {
             --it;
             int idx = *it;
-            if (isPinned(idx)) continue;
+            if (idx == mru || isPinned(idx)) continue;
 
             auto cit = cache.find(idx);
             if (cit != cache.end()) {

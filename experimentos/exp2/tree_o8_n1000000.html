@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>B-Tree visualizacao - o8_n1000000.dat</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100vw; height: 100vh; overflow: hidden; background: #fafafa; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { width: 100vw; height: 100vh; cursor: grab; user-select: none; }
+  svg:active { cursor: grabbing; }
+  .node { fill: #f4f4f4; stroke: #333; stroke-width: 1.2; }
+  .node-root { fill: #ffe599; stroke: #b45f06; stroke-width: 1.6; }
+  .node-truncated { fill: #e0e0e0; stroke: #888; stroke-width: 1; stroke-dasharray: 3,2; }
+  .edge { stroke: #666; stroke-width: 1; fill: none; }
+  .key { font: 9px monospace; text-anchor: middle; dominant-baseline: middle; }
+  .label { font: 7px monospace; fill: #999; text-anchor: middle; }
+  .trunc-info { font: 8px monospace; fill: #b45f06; text-anchor: middle; }
+  #info {
+    position: fixed; top: 12px; left: 12px;
+    background: rgba(255,255,255,0.95);
+    padding: 10px 14px; border: 1px solid #ccc; border-radius: 4px;
+    font: 12px monospace; line-height: 1.5;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    pointer-events: none;
+  }
+  #help {
+    position: fixed; bottom: 12px; left: 12px;
+    background: rgba(255,255,255,0.95);
+    padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;
+    font: 11px monospace; color: #555;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="info">
+  <strong>B-Tree</strong> (o8_n1000000.dat)<br>
+  ORDER=8 &middot; rootIdx=<span style="color:#b45f06">174763</span><br>
+  nos no arquivo: 333329<br>
+  alcancaveis: 333329<br>
+  visiveis: 80<br>profundidade max: 3 <span style='color:#b45f06'>(truncado)</span>
+</div>
+<div id="help">scroll: zoom &nbsp;|&nbsp; arrasta: pan &nbsp;|&nbsp; R: reset</div>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760.0 312.0"
+     preserveAspectRatio="xMidYMid meet">
+  <g id="content" transform="translate(26.0, 40.0)">
+  <line class="edge" x1="737.5" y1="11.0" x2="224.0" y2="59.0"/>
+  <line class="edge" x1="759.5" y1="11.0" x2="672.0" y2="59.0"/>
+  <line class="edge" x1="781.5" y1="11.0" x2="1295.0" y2="59.0"/>
+  <line class="edge" x1="191.0" y1="81.0" x2="56.0" y2="129.0"/>
+  <line class="edge" x1="213.0" y1="81.0" x2="168.0" y2="129.0"/>
+  <line class="edge" x1="235.0" y1="81.0" x2="280.0" y2="129.0"/>
+  <line class="edge" x1="257.0" y1="81.0" x2="392.0" y2="129.0"/>
+  <line class="edge" x1="23.0" y1="151.0" x2="14.0" y2="199.0"/>
+  <line class="edge" x1="45.0" y1="151.0" x2="42.0" y2="199.0"/>
+  <line class="edge" x1="67.0" y1="151.0" x2="70.0" y2="199.0"/>
+  <line class="edge" x1="89.0" y1="151.0" x2="98.0" y2="199.0"/>
+  <line class="edge" x1="135.0" y1="151.0" x2="126.0" y2="199.0"/>
+  <line class="edge" x1="157.0" y1="151.0" x2="154.0" y2="199.0"/>
+  <line class="edge" x1="179.0" y1="151.0" x2="182.0" y2="199.0"/>
+  <line class="edge" x1="201.0" y1="151.0" x2="210.0" y2="199.0"/>
+  <line class="edge" x1="247.0" y1="151.0" x2="238.0" y2="199.0"/>
+  <line class="edge" x1="269.0" y1="151.0" x2="266.0" y2="199.0"/>
+  <line class="edge" x1="291.0" y1="151.0" x2="294.0" y2="199.0"/>
+  <line class="edge" x1="313.0" y1="151.0" x2="322.0" y2="199.0"/>
+  <line class="edge" x1="359.0" y1="151.0" x2="350.0" y2="199.0"/>
+  <line class="edge" x1="381.0" y1="151.0" x2="378.0" y2="199.0"/>
+  <line class="edge" x1="403.0" y1="151.0" x2="406.0" y2="199.0"/>
+  <line class="edge" x1="425.0" y1="151.0" x2="434.0" y2="199.0"/>
+  <line class="edge" x1="639.0" y1="81.0" x2="504.0" y2="129.0"/>
+  <line class="edge" x1="661.0" y1="81.0" x2="616.0" y2="129.0"/>
+  <line class="edge" x1="683.0" y1="81.0" x2="728.0" y2="129.0"/>
+  <line class="edge" x1="705.0" y1="81.0" x2="840.0" y2="129.0"/>
+  <line class="edge" x1="471.0" y1="151.0" x2="462.0" y2="199.0"/>
+  <line class="edge" x1="493.0" y1="151.0" x2="490.0" y2="199.0"/>
+  <line class="edge" x1="515.0" y1="151.0" x2="518.0" y2="199.0"/>
+  <line class="edge" x1="537.0" y1="151.0" x2="546.0" y2="199.0"/>
+  <line class="edge" x1="583.0" y1="151.0" x2="574.0" y2="199.0"/>
+  <line class="edge" x1="605.0" y1="151.0" x2="602.0" y2="199.0"/>
+  <line class="edge" x1="627.0" y1="151.0" x2="630.0" y2="199.0"/>
+  <line class="edge" x1="649.0" y1="151.0" x2="658.0" y2="199.0"/>
+  <line class="edge" x1="695.0" y1="151.0" x2="686.0" y2="199.0"/>
+  <line class="edge" x1="717.0" y1="151.0" x2="714.0" y2="199.0"/>
+  <line class="edge" x1="739.0" y1="151.0" x2="742.0" y2="199.0"/>
+  <line class="edge" x1="761.0" y1="151.0" x2="770.0" y2="199.0"/>
+  <line class="edge" x1="807.0" y1="151.0" x2="798.0" y2="199.0"/>
+  <line class="edge" x1="829.0" y1="151.0" x2="826.0" y2="199.0"/>
+  <line class="edge" x1="851.0" y1="151.0" x2="854.0" y2="199.0"/>
+  <line class="edge" x1="873.0" y1="151.0" x2="882.0" y2="199.0"/>
+  <line class="edge" x1="1229.0" y1="81.0" x2="952.0" y2="129.0"/>
+  <line class="edge" x1="1251.0" y1="81.0" x2="1064.0" y2="129.0"/>
+  <line class="edge" x1="1273.0" y1="81.0" x2="1176.0" y2="129.0"/>
+  <line class="edge" x1="1295.0" y1="81.0" x2="1288.0" y2="129.0"/>
+  <line class="edge" x1="1317.0" y1="81.0" x2="1400.0" y2="129.0"/>
+  <line class="edge" x1="1339.0" y1="81.0" x2="1512.0" y2="129.0"/>
+  <line class="edge" x1="1361.0" y1="81.0" x2="1638.0" y2="129.0"/>
+  <line class="edge" x1="919.0" y1="151.0" x2="910.0" y2="199.0"/>
+  <line class="edge" x1="941.0" y1="151.0" x2="938.0" y2="199.0"/>
+  <line class="edge" x1="963.0" y1="151.0" x2="966.0" y2="199.0"/>
+  <line class="edge" x1="985.0" y1="151.0" x2="994.0" y2="199.0"/>
+  <line class="edge" x1="1031.0" y1="151.0" x2="1022.0" y2="199.0"/>
+  <line class="edge" x1="1053.0" y1="151.0" x2="1050.0" y2="199.0"/>
+  <line class="edge" x1="1075.0" y1="151.0" x2="1078.0" y2="199.0"/>
+  <line class="edge" x1="1097.0" y1="151.0" x2="1106.0" y2="199.0"/>
+  <line class="edge" x1="1143.0" y1="151.0" x2="1134.0" y2="199.0"/>
+  <line class="edge" x1="1165.0" y1="151.0" x2="1162.0" y2="199.0"/>
+  <line class="edge" x1="1187.0" y1="151.0" x2="1190.0" y2="199.0"/>
+  <line class="edge" x1="1209.0" y1="151.0" x2="1218.0" y2="199.0"/>
+  <line class="edge" x1="1255.0" y1="151.0" x2="1246.0" y2="199.0"/>
+  <line class="edge" x1="1277.0" y1="151.0" x2="1274.0" y2="199.0"/>
+  <line class="edge" x1="1299.0" y1="151.0" x2="1302.0" y2="199.0"/>
+  <line class="edge" x1="1321.0" y1="151.0" x2="1330.0" y2="199.0"/>
+  <line class="edge" x1="1367.0" y1="151.0" x2="1358.0" y2="199.0"/>
+  <line class="edge" x1="1389.0" y1="151.0" x2="1386.0" y2="199.0"/>
+  <line class="edge" x1="1411.0" y1="151.0" x2="1414.0" y2="199.0"/>
+  <line class="edge" x1="1433.0" y1="151.0" x2="1442.0" y2="199.0"/>
+  <line class="edge" x1="1479.0" y1="151.0" x2="1470.0" y2="199.0"/>
+  <line class="edge" x1="1501.0" y1="151.0" x2="1498.0" y2="199.0"/>
+  <line class="edge" x1="1523.0" y1="151.0" x2="1526.0" y2="199.0"/>
+  <line class="edge" x1="1545.0" y1="151.0" x2="1554.0" y2="199.0"/>
+  <line class="edge" x1="1594.0" y1="151.0" x2="1582.0" y2="199.0"/>
+  <line class="edge" x1="1616.0" y1="151.0" x2="1610.0" y2="199.0"/>
+  <line class="edge" x1="1638.0" y1="151.0" x2="1638.0" y2="199.0"/>
+  <line class="edge" x1="1660.0" y1="151.0" x2="1666.0" y2="199.0"/>
+  <line class="edge" x1="1682.0" y1="151.0" x2="1694.0" y2="199.0"/>
+  <rect class="node-root" x="737.5" y="-11.0" width="44.0" height="22.0" rx="2"/>
+  <line class="edge" x1="759.5" y1="-11.0" x2="759.5" y2="11.0"/>
+  <text class="key" x="748.5" y="0.0">262144</text>
+  <text class="key" x="770.5" y="0.0">524288</text>
+  <text class="label" x="759.5" y="-15.0">#174763</text>
+  <rect class="node" x="191.0" y="59.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="213.0" y1="59.0" x2="213.0" y2="81.0"/>
+  <line class="edge" x1="235.0" y1="59.0" x2="235.0" y2="81.0"/>
+  <text class="key" x="202.0" y="70.0">65536</text>
+  <text class="key" x="224.0" y="70.0">131072</text>
+  <text class="key" x="246.0" y="70.0">196608</text>
+  <text class="label" x="224.0" y="55.0">#43691</text>
+  <rect class="node" x="23.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="45.0" y1="129.0" x2="45.0" y2="151.0"/>
+  <line class="edge" x1="67.0" y1="129.0" x2="67.0" y2="151.0"/>
+  <text class="key" x="34.0" y="140.0">16384</text>
+  <text class="key" x="56.0" y="140.0">32768</text>
+  <text class="key" x="78.0" y="140.0">49152</text>
+  <text class="label" x="56.0" y="125.0">#10923</text>
+  <rect class="node-truncated" x="-19.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="3.0" y1="199.0" x2="3.0" y2="221.0"/>
+  <line class="edge" x1="25.0" y1="199.0" x2="25.0" y2="221.0"/>
+  <text class="key" x="-8.0" y="210.0">4096</text>
+  <text class="key" x="14.0" y="210.0">8192</text>
+  <text class="key" x="36.0" y="210.0">12288</text>
+  <text class="trunc-info" x="14.0" y="231.0">+5460</text>
+  <text class="label" x="14.0" y="195.0">#2731</text>
+  <rect class="node-truncated" x="9.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="31.0" y1="199.0" x2="31.0" y2="221.0"/>
+  <line class="edge" x1="53.0" y1="199.0" x2="53.0" y2="221.0"/>
+  <text class="key" x="20.0" y="210.0">20480</text>
+  <text class="key" x="42.0" y="210.0">24576</text>
+  <text class="key" x="64.0" y="210.0">28672</text>
+  <text class="trunc-info" x="42.0" y="231.0">+5460</text>
+  <text class="label" x="42.0" y="195.0">#10924</text>
+  <rect class="node-truncated" x="37.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="59.0" y1="199.0" x2="59.0" y2="221.0"/>
+  <line class="edge" x1="81.0" y1="199.0" x2="81.0" y2="221.0"/>
+  <text class="key" x="48.0" y="210.0">36864</text>
+  <text class="key" x="70.0" y="210.0">40960</text>
+  <text class="key" x="92.0" y="210.0">45056</text>
+  <text class="trunc-info" x="70.0" y="231.0">+5460</text>
+  <text class="label" x="70.0" y="195.0">#16385</text>
+  <rect class="node-truncated" x="65.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="87.0" y1="199.0" x2="87.0" y2="221.0"/>
+  <line class="edge" x1="109.0" y1="199.0" x2="109.0" y2="221.0"/>
+  <text class="key" x="76.0" y="210.0">53248</text>
+  <text class="key" x="98.0" y="210.0">57344</text>
+  <text class="key" x="120.0" y="210.0">61440</text>
+  <text class="trunc-info" x="98.0" y="231.0">+5460</text>
+  <text class="label" x="98.0" y="195.0">#21846</text>
+  <rect class="node" x="135.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="157.0" y1="129.0" x2="157.0" y2="151.0"/>
+  <line class="edge" x1="179.0" y1="129.0" x2="179.0" y2="151.0"/>
+  <text class="key" x="146.0" y="140.0">81920</text>
+  <text class="key" x="168.0" y="140.0">98304</text>
+  <text class="key" x="190.0" y="140.0">114688</text>
+  <text class="label" x="168.0" y="125.0">#43692</text>
+  <rect class="node-truncated" x="93.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="115.0" y1="199.0" x2="115.0" y2="221.0"/>
+  <line class="edge" x1="137.0" y1="199.0" x2="137.0" y2="221.0"/>
+  <text class="key" x="104.0" y="210.0">69632</text>
+  <text class="key" x="126.0" y="210.0">73728</text>
+  <text class="key" x="148.0" y="210.0">77824</text>
+  <text class="trunc-info" x="126.0" y="231.0">+5460</text>
+  <text class="label" x="126.0" y="195.0">#27307</text>
+  <rect class="node-truncated" x="121.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="143.0" y1="199.0" x2="143.0" y2="221.0"/>
+  <line class="edge" x1="165.0" y1="199.0" x2="165.0" y2="221.0"/>
+  <text class="key" x="132.0" y="210.0">86016</text>
+  <text class="key" x="154.0" y="210.0">90112</text>
+  <text class="key" x="176.0" y="210.0">94208</text>
+  <text class="trunc-info" x="154.0" y="231.0">+5460</text>
+  <text class="label" x="154.0" y="195.0">#32768</text>
+  <rect class="node-truncated" x="149.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="171.0" y1="199.0" x2="171.0" y2="221.0"/>
+  <line class="edge" x1="193.0" y1="199.0" x2="193.0" y2="221.0"/>
+  <text class="key" x="160.0" y="210.0">102400</text>
+  <text class="key" x="182.0" y="210.0">106496</text>
+  <text class="key" x="204.0" y="210.0">110592</text>
+  <text class="trunc-info" x="182.0" y="231.0">+5460</text>
+  <text class="label" x="182.0" y="195.0">#38229</text>
+  <rect class="node-truncated" x="177.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="199.0" y1="199.0" x2="199.0" y2="221.0"/>
+  <line class="edge" x1="221.0" y1="199.0" x2="221.0" y2="221.0"/>
+  <text class="key" x="188.0" y="210.0">118784</text>
+  <text class="key" x="210.0" y="210.0">122880</text>
+  <text class="key" x="232.0" y="210.0">126976</text>
+  <text class="trunc-info" x="210.0" y="231.0">+5460</text>
+  <text class="label" x="210.0" y="195.0">#43690</text>
+  <rect class="node" x="247.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="269.0" y1="129.0" x2="269.0" y2="151.0"/>
+  <line class="edge" x1="291.0" y1="129.0" x2="291.0" y2="151.0"/>
+  <text class="key" x="258.0" y="140.0">147456</text>
+  <text class="key" x="280.0" y="140.0">163840</text>
+  <text class="key" x="302.0" y="140.0">180224</text>
+  <text class="label" x="280.0" y="125.0">#65537</text>
+  <rect class="node-truncated" x="205.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="227.0" y1="199.0" x2="227.0" y2="221.0"/>
+  <line class="edge" x1="249.0" y1="199.0" x2="249.0" y2="221.0"/>
+  <text class="key" x="216.0" y="210.0">135168</text>
+  <text class="key" x="238.0" y="210.0">139264</text>
+  <text class="key" x="260.0" y="210.0">143360</text>
+  <text class="trunc-info" x="238.0" y="231.0">+5460</text>
+  <text class="label" x="238.0" y="195.0">#49153</text>
+  <rect class="node-truncated" x="233.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="255.0" y1="199.0" x2="255.0" y2="221.0"/>
+  <line class="edge" x1="277.0" y1="199.0" x2="277.0" y2="221.0"/>
+  <text class="key" x="244.0" y="210.0">151552</text>
+  <text class="key" x="266.0" y="210.0">155648</text>
+  <text class="key" x="288.0" y="210.0">159744</text>
+  <text class="trunc-info" x="266.0" y="231.0">+5460</text>
+  <text class="label" x="266.0" y="195.0">#54614</text>
+  <rect class="node-truncated" x="261.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="283.0" y1="199.0" x2="283.0" y2="221.0"/>
+  <line class="edge" x1="305.0" y1="199.0" x2="305.0" y2="221.0"/>
+  <text class="key" x="272.0" y="210.0">167936</text>
+  <text class="key" x="294.0" y="210.0">172032</text>
+  <text class="key" x="316.0" y="210.0">176128</text>
+  <text class="trunc-info" x="294.0" y="231.0">+5460</text>
+  <text class="label" x="294.0" y="195.0">#60075</text>
+  <rect class="node-truncated" x="289.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="311.0" y1="199.0" x2="311.0" y2="221.0"/>
+  <line class="edge" x1="333.0" y1="199.0" x2="333.0" y2="221.0"/>
+  <text class="key" x="300.0" y="210.0">184320</text>
+  <text class="key" x="322.0" y="210.0">188416</text>
+  <text class="key" x="344.0" y="210.0">192512</text>
+  <text class="trunc-info" x="322.0" y="231.0">+5460</text>
+  <text class="label" x="322.0" y="195.0">#65536</text>
+  <rect class="node" x="359.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="381.0" y1="129.0" x2="381.0" y2="151.0"/>
+  <line class="edge" x1="403.0" y1="129.0" x2="403.0" y2="151.0"/>
+  <text class="key" x="370.0" y="140.0">212992</text>
+  <text class="key" x="392.0" y="140.0">229376</text>
+  <text class="key" x="414.0" y="140.0">245760</text>
+  <text class="label" x="392.0" y="125.0">#87382</text>
+  <rect class="node-truncated" x="317.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="339.0" y1="199.0" x2="339.0" y2="221.0"/>
+  <line class="edge" x1="361.0" y1="199.0" x2="361.0" y2="221.0"/>
+  <text class="key" x="328.0" y="210.0">200704</text>
+  <text class="key" x="350.0" y="210.0">204800</text>
+  <text class="key" x="372.0" y="210.0">208896</text>
+  <text class="trunc-info" x="350.0" y="231.0">+5460</text>
+  <text class="label" x="350.0" y="195.0">#70998</text>
+  <rect class="node-truncated" x="345.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="367.0" y1="199.0" x2="367.0" y2="221.0"/>
+  <line class="edge" x1="389.0" y1="199.0" x2="389.0" y2="221.0"/>
+  <text class="key" x="356.0" y="210.0">217088</text>
+  <text class="key" x="378.0" y="210.0">221184</text>
+  <text class="key" x="400.0" y="210.0">225280</text>
+  <text class="trunc-info" x="378.0" y="231.0">+5460</text>
+  <text class="label" x="378.0" y="195.0">#76459</text>
+  <rect class="node-truncated" x="373.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="395.0" y1="199.0" x2="395.0" y2="221.0"/>
+  <line class="edge" x1="417.0" y1="199.0" x2="417.0" y2="221.0"/>
+  <text class="key" x="384.0" y="210.0">233472</text>
+  <text class="key" x="406.0" y="210.0">237568</text>
+  <text class="key" x="428.0" y="210.0">241664</text>
+  <text class="trunc-info" x="406.0" y="231.0">+5460</text>
+  <text class="label" x="406.0" y="195.0">#81920</text>
+  <rect class="node-truncated" x="401.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="423.0" y1="199.0" x2="423.0" y2="221.0"/>
+  <line class="edge" x1="445.0" y1="199.0" x2="445.0" y2="221.0"/>
+  <text class="key" x="412.0" y="210.0">249856</text>
+  <text class="key" x="434.0" y="210.0">253952</text>
+  <text class="key" x="456.0" y="210.0">258048</text>
+  <text class="trunc-info" x="434.0" y="231.0">+5460</text>
+  <text class="label" x="434.0" y="195.0">#87381</text>
+  <rect class="node" x="639.0" y="59.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="661.0" y1="59.0" x2="661.0" y2="81.0"/>
+  <line class="edge" x1="683.0" y1="59.0" x2="683.0" y2="81.0"/>
+  <text class="key" x="650.0" y="70.0">327680</text>
+  <text class="key" x="672.0" y="70.0">393216</text>
+  <text class="key" x="694.0" y="70.0">458752</text>
+  <text class="label" x="672.0" y="55.0">#174764</text>
+  <rect class="node" x="471.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="493.0" y1="129.0" x2="493.0" y2="151.0"/>
+  <line class="edge" x1="515.0" y1="129.0" x2="515.0" y2="151.0"/>
+  <text class="key" x="482.0" y="140.0">278528</text>
+  <text class="key" x="504.0" y="140.0">294912</text>
+  <text class="key" x="526.0" y="140.0">311296</text>
+  <text class="label" x="504.0" y="125.0">#109227</text>
+  <rect class="node-truncated" x="429.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="451.0" y1="199.0" x2="451.0" y2="221.0"/>
+  <line class="edge" x1="473.0" y1="199.0" x2="473.0" y2="221.0"/>
+  <text class="key" x="440.0" y="210.0">266240</text>
+  <text class="key" x="462.0" y="210.0">270336</text>
+  <text class="key" x="484.0" y="210.0">274432</text>
+  <text class="trunc-info" x="462.0" y="231.0">+5460</text>
+  <text class="label" x="462.0" y="195.0">#92843</text>
+  <rect class="node-truncated" x="457.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="479.0" y1="199.0" x2="479.0" y2="221.0"/>
+  <line class="edge" x1="501.0" y1="199.0" x2="501.0" y2="221.0"/>
+  <text class="key" x="468.0" y="210.0">282624</text>
+  <text class="key" x="490.0" y="210.0">286720</text>
+  <text class="key" x="512.0" y="210.0">290816</text>
+  <text class="trunc-info" x="490.0" y="231.0">+5460</text>
+  <text class="label" x="490.0" y="195.0">#98304</text>
+  <rect class="node-truncated" x="485.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="507.0" y1="199.0" x2="507.0" y2="221.0"/>
+  <line class="edge" x1="529.0" y1="199.0" x2="529.0" y2="221.0"/>
+  <text class="key" x="496.0" y="210.0">299008</text>
+  <text class="key" x="518.0" y="210.0">303104</text>
+  <text class="key" x="540.0" y="210.0">307200</text>
+  <text class="trunc-info" x="518.0" y="231.0">+5460</text>
+  <text class="label" x="518.0" y="195.0">#103765</text>
+  <rect class="node-truncated" x="513.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="535.0" y1="199.0" x2="535.0" y2="221.0"/>
+  <line class="edge" x1="557.0" y1="199.0" x2="557.0" y2="221.0"/>
+  <text class="key" x="524.0" y="210.0">315392</text>
+  <text class="key" x="546.0" y="210.0">319488</text>
+  <text class="key" x="568.0" y="210.0">323584</text>
+  <text class="trunc-info" x="546.0" y="231.0">+5460</text>
+  <text class="label" x="546.0" y="195.0">#109226</text>
+  <rect class="node" x="583.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="605.0" y1="129.0" x2="605.0" y2="151.0"/>
+  <line class="edge" x1="627.0" y1="129.0" x2="627.0" y2="151.0"/>
+  <text class="key" x="594.0" y="140.0">344064</text>
+  <text class="key" x="616.0" y="140.0">360448</text>
+  <text class="key" x="638.0" y="140.0">376832</text>
+  <text class="label" x="616.0" y="125.0">#131072</text>
+  <rect class="node-truncated" x="541.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="563.0" y1="199.0" x2="563.0" y2="221.0"/>
+  <line class="edge" x1="585.0" y1="199.0" x2="585.0" y2="221.0"/>
+  <text class="key" x="552.0" y="210.0">331776</text>
+  <text class="key" x="574.0" y="210.0">335872</text>
+  <text class="key" x="596.0" y="210.0">339968</text>
+  <text class="trunc-info" x="574.0" y="231.0">+5460</text>
+  <text class="label" x="574.0" y="195.0">#114688</text>
+  <rect class="node-truncated" x="569.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="591.0" y1="199.0" x2="591.0" y2="221.0"/>
+  <line class="edge" x1="613.0" y1="199.0" x2="613.0" y2="221.0"/>
+  <text class="key" x="580.0" y="210.0">348160</text>
+  <text class="key" x="602.0" y="210.0">352256</text>
+  <text class="key" x="624.0" y="210.0">356352</text>
+  <text class="trunc-info" x="602.0" y="231.0">+5460</text>
+  <text class="label" x="602.0" y="195.0">#120149</text>
+  <rect class="node-truncated" x="597.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="619.0" y1="199.0" x2="619.0" y2="221.0"/>
+  <line class="edge" x1="641.0" y1="199.0" x2="641.0" y2="221.0"/>
+  <text class="key" x="608.0" y="210.0">364544</text>
+  <text class="key" x="630.0" y="210.0">368640</text>
+  <text class="key" x="652.0" y="210.0">372736</text>
+  <text class="trunc-info" x="630.0" y="231.0">+5460</text>
+  <text class="label" x="630.0" y="195.0">#125610</text>
+  <rect class="node-truncated" x="625.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="647.0" y1="199.0" x2="647.0" y2="221.0"/>
+  <line class="edge" x1="669.0" y1="199.0" x2="669.0" y2="221.0"/>
+  <text class="key" x="636.0" y="210.0">380928</text>
+  <text class="key" x="658.0" y="210.0">385024</text>
+  <text class="key" x="680.0" y="210.0">389120</text>
+  <text class="trunc-info" x="658.0" y="231.0">+5460</text>
+  <text class="label" x="658.0" y="195.0">#131071</text>
+  <rect class="node" x="695.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="717.0" y1="129.0" x2="717.0" y2="151.0"/>
+  <line class="edge" x1="739.0" y1="129.0" x2="739.0" y2="151.0"/>
+  <text class="key" x="706.0" y="140.0">409600</text>
+  <text class="key" x="728.0" y="140.0">425984</text>
+  <text class="key" x="750.0" y="140.0">442368</text>
+  <text class="label" x="728.0" y="125.0">#152917</text>
+  <rect class="node-truncated" x="653.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="675.0" y1="199.0" x2="675.0" y2="221.0"/>
+  <line class="edge" x1="697.0" y1="199.0" x2="697.0" y2="221.0"/>
+  <text class="key" x="664.0" y="210.0">397312</text>
+  <text class="key" x="686.0" y="210.0">401408</text>
+  <text class="key" x="708.0" y="210.0">405504</text>
+  <text class="trunc-info" x="686.0" y="231.0">+5460</text>
+  <text class="label" x="686.0" y="195.0">#136533</text>
+  <rect class="node-truncated" x="681.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="703.0" y1="199.0" x2="703.0" y2="221.0"/>
+  <line class="edge" x1="725.0" y1="199.0" x2="725.0" y2="221.0"/>
+  <text class="key" x="692.0" y="210.0">413696</text>
+  <text class="key" x="714.0" y="210.0">417792</text>
+  <text class="key" x="736.0" y="210.0">421888</text>
+  <text class="trunc-info" x="714.0" y="231.0">+5460</text>
+  <text class="label" x="714.0" y="195.0">#141994</text>
+  <rect class="node-truncated" x="709.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="731.0" y1="199.0" x2="731.0" y2="221.0"/>
+  <line class="edge" x1="753.0" y1="199.0" x2="753.0" y2="221.0"/>
+  <text class="key" x="720.0" y="210.0">430080</text>
+  <text class="key" x="742.0" y="210.0">434176</text>
+  <text class="key" x="764.0" y="210.0">438272</text>
+  <text class="trunc-info" x="742.0" y="231.0">+5460</text>
+  <text class="label" x="742.0" y="195.0">#147455</text>
+  <rect class="node-truncated" x="737.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="759.0" y1="199.0" x2="759.0" y2="221.0"/>
+  <line class="edge" x1="781.0" y1="199.0" x2="781.0" y2="221.0"/>
+  <text class="key" x="748.0" y="210.0">446464</text>
+  <text class="key" x="770.0" y="210.0">450560</text>
+  <text class="key" x="792.0" y="210.0">454656</text>
+  <text class="trunc-info" x="770.0" y="231.0">+5460</text>
+  <text class="label" x="770.0" y="195.0">#152916</text>
+  <rect class="node" x="807.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="829.0" y1="129.0" x2="829.0" y2="151.0"/>
+  <line class="edge" x1="851.0" y1="129.0" x2="851.0" y2="151.0"/>
+  <text class="key" x="818.0" y="140.0">475136</text>
+  <text class="key" x="840.0" y="140.0">491520</text>
+  <text class="key" x="862.0" y="140.0">507904</text>
+  <text class="label" x="840.0" y="125.0">#174762</text>
+  <rect class="node-truncated" x="765.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="787.0" y1="199.0" x2="787.0" y2="221.0"/>
+  <line class="edge" x1="809.0" y1="199.0" x2="809.0" y2="221.0"/>
+  <text class="key" x="776.0" y="210.0">462848</text>
+  <text class="key" x="798.0" y="210.0">466944</text>
+  <text class="key" x="820.0" y="210.0">471040</text>
+  <text class="trunc-info" x="798.0" y="231.0">+5460</text>
+  <text class="label" x="798.0" y="195.0">#158378</text>
+  <rect class="node-truncated" x="793.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="815.0" y1="199.0" x2="815.0" y2="221.0"/>
+  <line class="edge" x1="837.0" y1="199.0" x2="837.0" y2="221.0"/>
+  <text class="key" x="804.0" y="210.0">479232</text>
+  <text class="key" x="826.0" y="210.0">483328</text>
+  <text class="key" x="848.0" y="210.0">487424</text>
+  <text class="trunc-info" x="826.0" y="231.0">+5460</text>
+  <text class="label" x="826.0" y="195.0">#163839</text>
+  <rect class="node-truncated" x="821.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="843.0" y1="199.0" x2="843.0" y2="221.0"/>
+  <line class="edge" x1="865.0" y1="199.0" x2="865.0" y2="221.0"/>
+  <text class="key" x="832.0" y="210.0">495616</text>
+  <text class="key" x="854.0" y="210.0">499712</text>
+  <text class="key" x="876.0" y="210.0">503808</text>
+  <text class="trunc-info" x="854.0" y="231.0">+5460</text>
+  <text class="label" x="854.0" y="195.0">#169300</text>
+  <rect class="node-truncated" x="849.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="871.0" y1="199.0" x2="871.0" y2="221.0"/>
+  <line class="edge" x1="893.0" y1="199.0" x2="893.0" y2="221.0"/>
+  <text class="key" x="860.0" y="210.0">512000</text>
+  <text class="key" x="882.0" y="210.0">516096</text>
+  <text class="key" x="904.0" y="210.0">520192</text>
+  <text class="trunc-info" x="882.0" y="231.0">+5460</text>
+  <text class="label" x="882.0" y="195.0">#174761</text>
+  <rect class="node" x="1229.0" y="59.0" width="132.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1251.0" y1="59.0" x2="1251.0" y2="81.0"/>
+  <line class="edge" x1="1273.0" y1="59.0" x2="1273.0" y2="81.0"/>
+  <line class="edge" x1="1295.0" y1="59.0" x2="1295.0" y2="81.0"/>
+  <line class="edge" x1="1317.0" y1="59.0" x2="1317.0" y2="81.0"/>
+  <line class="edge" x1="1339.0" y1="59.0" x2="1339.0" y2="81.0"/>
+  <text class="key" x="1240.0" y="70.0">589824</text>
+  <text class="key" x="1262.0" y="70.0">655360</text>
+  <text class="key" x="1284.0" y="70.0">720896</text>
+  <text class="key" x="1306.0" y="70.0">786432</text>
+  <text class="key" x="1328.0" y="70.0">851968</text>
+  <text class="key" x="1350.0" y="70.0">917504</text>
+  <text class="label" x="1295.0" y="55.0">#262145</text>
+  <rect class="node" x="919.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="941.0" y1="129.0" x2="941.0" y2="151.0"/>
+  <line class="edge" x1="963.0" y1="129.0" x2="963.0" y2="151.0"/>
+  <text class="key" x="930.0" y="140.0">540672</text>
+  <text class="key" x="952.0" y="140.0">557056</text>
+  <text class="key" x="974.0" y="140.0">573440</text>
+  <text class="label" x="952.0" y="125.0">#196609</text>
+  <rect class="node-truncated" x="877.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="899.0" y1="199.0" x2="899.0" y2="221.0"/>
+  <line class="edge" x1="921.0" y1="199.0" x2="921.0" y2="221.0"/>
+  <text class="key" x="888.0" y="210.0">528384</text>
+  <text class="key" x="910.0" y="210.0">532480</text>
+  <text class="key" x="932.0" y="210.0">536576</text>
+  <text class="trunc-info" x="910.0" y="231.0">+5460</text>
+  <text class="label" x="910.0" y="195.0">#180225</text>
+  <rect class="node-truncated" x="905.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="927.0" y1="199.0" x2="927.0" y2="221.0"/>
+  <line class="edge" x1="949.0" y1="199.0" x2="949.0" y2="221.0"/>
+  <text class="key" x="916.0" y="210.0">544768</text>
+  <text class="key" x="938.0" y="210.0">548864</text>
+  <text class="key" x="960.0" y="210.0">552960</text>
+  <text class="trunc-info" x="938.0" y="231.0">+5460</text>
+  <text class="label" x="938.0" y="195.0">#185686</text>
+  <rect class="node-truncated" x="933.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="955.0" y1="199.0" x2="955.0" y2="221.0"/>
+  <line class="edge" x1="977.0" y1="199.0" x2="977.0" y2="221.0"/>
+  <text class="key" x="944.0" y="210.0">561152</text>
+  <text class="key" x="966.0" y="210.0">565248</text>
+  <text class="key" x="988.0" y="210.0">569344</text>
+  <text class="trunc-info" x="966.0" y="231.0">+5460</text>
+  <text class="label" x="966.0" y="195.0">#191147</text>
+  <rect class="node-truncated" x="961.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="983.0" y1="199.0" x2="983.0" y2="221.0"/>
+  <line class="edge" x1="1005.0" y1="199.0" x2="1005.0" y2="221.0"/>
+  <text class="key" x="972.0" y="210.0">577536</text>
+  <text class="key" x="994.0" y="210.0">581632</text>
+  <text class="key" x="1016.0" y="210.0">585728</text>
+  <text class="trunc-info" x="994.0" y="231.0">+5460</text>
+  <text class="label" x="994.0" y="195.0">#196608</text>
+  <rect class="node" x="1031.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1053.0" y1="129.0" x2="1053.0" y2="151.0"/>
+  <line class="edge" x1="1075.0" y1="129.0" x2="1075.0" y2="151.0"/>
+  <text class="key" x="1042.0" y="140.0">606208</text>
+  <text class="key" x="1064.0" y="140.0">622592</text>
+  <text class="key" x="1086.0" y="140.0">638976</text>
+  <text class="label" x="1064.0" y="125.0">#218454</text>
+  <rect class="node-truncated" x="989.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1011.0" y1="199.0" x2="1011.0" y2="221.0"/>
+  <line class="edge" x1="1033.0" y1="199.0" x2="1033.0" y2="221.0"/>
+  <text class="key" x="1000.0" y="210.0">593920</text>
+  <text class="key" x="1022.0" y="210.0">598016</text>
+  <text class="key" x="1044.0" y="210.0">602112</text>
+  <text class="trunc-info" x="1022.0" y="231.0">+5460</text>
+  <text class="label" x="1022.0" y="195.0">#202070</text>
+  <rect class="node-truncated" x="1017.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1039.0" y1="199.0" x2="1039.0" y2="221.0"/>
+  <line class="edge" x1="1061.0" y1="199.0" x2="1061.0" y2="221.0"/>
+  <text class="key" x="1028.0" y="210.0">610304</text>
+  <text class="key" x="1050.0" y="210.0">614400</text>
+  <text class="key" x="1072.0" y="210.0">618496</text>
+  <text class="trunc-info" x="1050.0" y="231.0">+5460</text>
+  <text class="label" x="1050.0" y="195.0">#207531</text>
+  <rect class="node-truncated" x="1045.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1067.0" y1="199.0" x2="1067.0" y2="221.0"/>
+  <line class="edge" x1="1089.0" y1="199.0" x2="1089.0" y2="221.0"/>
+  <text class="key" x="1056.0" y="210.0">626688</text>
+  <text class="key" x="1078.0" y="210.0">630784</text>
+  <text class="key" x="1100.0" y="210.0">634880</text>
+  <text class="trunc-info" x="1078.0" y="231.0">+5460</text>
+  <text class="label" x="1078.0" y="195.0">#212992</text>
+  <rect class="node-truncated" x="1073.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1095.0" y1="199.0" x2="1095.0" y2="221.0"/>
+  <line class="edge" x1="1117.0" y1="199.0" x2="1117.0" y2="221.0"/>
+  <text class="key" x="1084.0" y="210.0">643072</text>
+  <text class="key" x="1106.0" y="210.0">647168</text>
+  <text class="key" x="1128.0" y="210.0">651264</text>
+  <text class="trunc-info" x="1106.0" y="231.0">+5460</text>
+  <text class="label" x="1106.0" y="195.0">#218453</text>
+  <rect class="node" x="1143.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1165.0" y1="129.0" x2="1165.0" y2="151.0"/>
+  <line class="edge" x1="1187.0" y1="129.0" x2="1187.0" y2="151.0"/>
+  <text class="key" x="1154.0" y="140.0">671744</text>
+  <text class="key" x="1176.0" y="140.0">688128</text>
+  <text class="key" x="1198.0" y="140.0">704512</text>
+  <text class="label" x="1176.0" y="125.0">#240299</text>
+  <rect class="node-truncated" x="1101.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1123.0" y1="199.0" x2="1123.0" y2="221.0"/>
+  <line class="edge" x1="1145.0" y1="199.0" x2="1145.0" y2="221.0"/>
+  <text class="key" x="1112.0" y="210.0">659456</text>
+  <text class="key" x="1134.0" y="210.0">663552</text>
+  <text class="key" x="1156.0" y="210.0">667648</text>
+  <text class="trunc-info" x="1134.0" y="231.0">+5460</text>
+  <text class="label" x="1134.0" y="195.0">#223915</text>
+  <rect class="node-truncated" x="1129.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1151.0" y1="199.0" x2="1151.0" y2="221.0"/>
+  <line class="edge" x1="1173.0" y1="199.0" x2="1173.0" y2="221.0"/>
+  <text class="key" x="1140.0" y="210.0">675840</text>
+  <text class="key" x="1162.0" y="210.0">679936</text>
+  <text class="key" x="1184.0" y="210.0">684032</text>
+  <text class="trunc-info" x="1162.0" y="231.0">+5460</text>
+  <text class="label" x="1162.0" y="195.0">#229376</text>
+  <rect class="node-truncated" x="1157.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1179.0" y1="199.0" x2="1179.0" y2="221.0"/>
+  <line class="edge" x1="1201.0" y1="199.0" x2="1201.0" y2="221.0"/>
+  <text class="key" x="1168.0" y="210.0">692224</text>
+  <text class="key" x="1190.0" y="210.0">696320</text>
+  <text class="key" x="1212.0" y="210.0">700416</text>
+  <text class="trunc-info" x="1190.0" y="231.0">+5460</text>
+  <text class="label" x="1190.0" y="195.0">#234837</text>
+  <rect class="node-truncated" x="1185.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1207.0" y1="199.0" x2="1207.0" y2="221.0"/>
+  <line class="edge" x1="1229.0" y1="199.0" x2="1229.0" y2="221.0"/>
+  <text class="key" x="1196.0" y="210.0">708608</text>
+  <text class="key" x="1218.0" y="210.0">712704</text>
+  <text class="key" x="1240.0" y="210.0">716800</text>
+  <text class="trunc-info" x="1218.0" y="231.0">+5460</text>
+  <text class="label" x="1218.0" y="195.0">#240298</text>
+  <rect class="node" x="1255.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1277.0" y1="129.0" x2="1277.0" y2="151.0"/>
+  <line class="edge" x1="1299.0" y1="129.0" x2="1299.0" y2="151.0"/>
+  <text class="key" x="1266.0" y="140.0">737280</text>
+  <text class="key" x="1288.0" y="140.0">753664</text>
+  <text class="key" x="1310.0" y="140.0">770048</text>
+  <text class="label" x="1288.0" y="125.0">#262144</text>
+  <rect class="node-truncated" x="1213.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1235.0" y1="199.0" x2="1235.0" y2="221.0"/>
+  <line class="edge" x1="1257.0" y1="199.0" x2="1257.0" y2="221.0"/>
+  <text class="key" x="1224.0" y="210.0">724992</text>
+  <text class="key" x="1246.0" y="210.0">729088</text>
+  <text class="key" x="1268.0" y="210.0">733184</text>
+  <text class="trunc-info" x="1246.0" y="231.0">+5460</text>
+  <text class="label" x="1246.0" y="195.0">#245760</text>
+  <rect class="node-truncated" x="1241.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1263.0" y1="199.0" x2="1263.0" y2="221.0"/>
+  <line class="edge" x1="1285.0" y1="199.0" x2="1285.0" y2="221.0"/>
+  <text class="key" x="1252.0" y="210.0">741376</text>
+  <text class="key" x="1274.0" y="210.0">745472</text>
+  <text class="key" x="1296.0" y="210.0">749568</text>
+  <text class="trunc-info" x="1274.0" y="231.0">+5460</text>
+  <text class="label" x="1274.0" y="195.0">#251221</text>
+  <rect class="node-truncated" x="1269.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1291.0" y1="199.0" x2="1291.0" y2="221.0"/>
+  <line class="edge" x1="1313.0" y1="199.0" x2="1313.0" y2="221.0"/>
+  <text class="key" x="1280.0" y="210.0">757760</text>
+  <text class="key" x="1302.0" y="210.0">761856</text>
+  <text class="key" x="1324.0" y="210.0">765952</text>
+  <text class="trunc-info" x="1302.0" y="231.0">+5460</text>
+  <text class="label" x="1302.0" y="195.0">#256682</text>
+  <rect class="node-truncated" x="1297.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1319.0" y1="199.0" x2="1319.0" y2="221.0"/>
+  <line class="edge" x1="1341.0" y1="199.0" x2="1341.0" y2="221.0"/>
+  <text class="key" x="1308.0" y="210.0">774144</text>
+  <text class="key" x="1330.0" y="210.0">778240</text>
+  <text class="key" x="1352.0" y="210.0">782336</text>
+  <text class="trunc-info" x="1330.0" y="231.0">+5460</text>
+  <text class="label" x="1330.0" y="195.0">#262143</text>
+  <rect class="node" x="1367.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1389.0" y1="129.0" x2="1389.0" y2="151.0"/>
+  <line class="edge" x1="1411.0" y1="129.0" x2="1411.0" y2="151.0"/>
+  <text class="key" x="1378.0" y="140.0">802816</text>
+  <text class="key" x="1400.0" y="140.0">819200</text>
+  <text class="key" x="1422.0" y="140.0">835584</text>
+  <text class="label" x="1400.0" y="125.0">#283990</text>
+  <rect class="node-truncated" x="1325.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1347.0" y1="199.0" x2="1347.0" y2="221.0"/>
+  <line class="edge" x1="1369.0" y1="199.0" x2="1369.0" y2="221.0"/>
+  <text class="key" x="1336.0" y="210.0">790528</text>
+  <text class="key" x="1358.0" y="210.0">794624</text>
+  <text class="key" x="1380.0" y="210.0">798720</text>
+  <text class="trunc-info" x="1358.0" y="231.0">+5460</text>
+  <text class="label" x="1358.0" y="195.0">#267606</text>
+  <rect class="node-truncated" x="1353.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1375.0" y1="199.0" x2="1375.0" y2="221.0"/>
+  <line class="edge" x1="1397.0" y1="199.0" x2="1397.0" y2="221.0"/>
+  <text class="key" x="1364.0" y="210.0">806912</text>
+  <text class="key" x="1386.0" y="210.0">811008</text>
+  <text class="key" x="1408.0" y="210.0">815104</text>
+  <text class="trunc-info" x="1386.0" y="231.0">+5460</text>
+  <text class="label" x="1386.0" y="195.0">#273067</text>
+  <rect class="node-truncated" x="1381.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1403.0" y1="199.0" x2="1403.0" y2="221.0"/>
+  <line class="edge" x1="1425.0" y1="199.0" x2="1425.0" y2="221.0"/>
+  <text class="key" x="1392.0" y="210.0">823296</text>
+  <text class="key" x="1414.0" y="210.0">827392</text>
+  <text class="key" x="1436.0" y="210.0">831488</text>
+  <text class="trunc-info" x="1414.0" y="231.0">+5460</text>
+  <text class="label" x="1414.0" y="195.0">#278528</text>
+  <rect class="node-truncated" x="1409.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1431.0" y1="199.0" x2="1431.0" y2="221.0"/>
+  <line class="edge" x1="1453.0" y1="199.0" x2="1453.0" y2="221.0"/>
+  <text class="key" x="1420.0" y="210.0">839680</text>
+  <text class="key" x="1442.0" y="210.0">843776</text>
+  <text class="key" x="1464.0" y="210.0">847872</text>
+  <text class="trunc-info" x="1442.0" y="231.0">+5460</text>
+  <text class="label" x="1442.0" y="195.0">#283989</text>
+  <rect class="node" x="1479.0" y="129.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1501.0" y1="129.0" x2="1501.0" y2="151.0"/>
+  <line class="edge" x1="1523.0" y1="129.0" x2="1523.0" y2="151.0"/>
+  <text class="key" x="1490.0" y="140.0">868352</text>
+  <text class="key" x="1512.0" y="140.0">884736</text>
+  <text class="key" x="1534.0" y="140.0">901120</text>
+  <text class="label" x="1512.0" y="125.0">#305835</text>
+  <rect class="node-truncated" x="1437.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1459.0" y1="199.0" x2="1459.0" y2="221.0"/>
+  <line class="edge" x1="1481.0" y1="199.0" x2="1481.0" y2="221.0"/>
+  <text class="key" x="1448.0" y="210.0">856064</text>
+  <text class="key" x="1470.0" y="210.0">860160</text>
+  <text class="key" x="1492.0" y="210.0">864256</text>
+  <text class="trunc-info" x="1470.0" y="231.0">+5460</text>
+  <text class="label" x="1470.0" y="195.0">#289451</text>
+  <rect class="node-truncated" x="1465.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1487.0" y1="199.0" x2="1487.0" y2="221.0"/>
+  <line class="edge" x1="1509.0" y1="199.0" x2="1509.0" y2="221.0"/>
+  <text class="key" x="1476.0" y="210.0">872448</text>
+  <text class="key" x="1498.0" y="210.0">876544</text>
+  <text class="key" x="1520.0" y="210.0">880640</text>
+  <text class="trunc-info" x="1498.0" y="231.0">+5460</text>
+  <text class="label" x="1498.0" y="195.0">#294912</text>
+  <rect class="node-truncated" x="1493.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1515.0" y1="199.0" x2="1515.0" y2="221.0"/>
+  <line class="edge" x1="1537.0" y1="199.0" x2="1537.0" y2="221.0"/>
+  <text class="key" x="1504.0" y="210.0">888832</text>
+  <text class="key" x="1526.0" y="210.0">892928</text>
+  <text class="key" x="1548.0" y="210.0">897024</text>
+  <text class="trunc-info" x="1526.0" y="231.0">+5460</text>
+  <text class="label" x="1526.0" y="195.0">#300373</text>
+  <rect class="node-truncated" x="1521.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1543.0" y1="199.0" x2="1543.0" y2="221.0"/>
+  <line class="edge" x1="1565.0" y1="199.0" x2="1565.0" y2="221.0"/>
+  <text class="key" x="1532.0" y="210.0">905216</text>
+  <text class="key" x="1554.0" y="210.0">909312</text>
+  <text class="key" x="1576.0" y="210.0">913408</text>
+  <text class="trunc-info" x="1554.0" y="231.0">+5460</text>
+  <text class="label" x="1554.0" y="195.0">#305834</text>
+  <rect class="node" x="1594.0" y="129.0" width="88.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1616.0" y1="129.0" x2="1616.0" y2="151.0"/>
+  <line class="edge" x1="1638.0" y1="129.0" x2="1638.0" y2="151.0"/>
+  <line class="edge" x1="1660.0" y1="129.0" x2="1660.0" y2="151.0"/>
+  <text class="key" x="1605.0" y="140.0">933888</text>
+  <text class="key" x="1627.0" y="140.0">950272</text>
+  <text class="key" x="1649.0" y="140.0">966656</text>
+  <text class="key" x="1671.0" y="140.0">983040</text>
+  <text class="label" x="1638.0" y="125.0">#327680</text>
+  <rect class="node-truncated" x="1549.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1571.0" y1="199.0" x2="1571.0" y2="221.0"/>
+  <line class="edge" x1="1593.0" y1="199.0" x2="1593.0" y2="221.0"/>
+  <text class="key" x="1560.0" y="210.0">921600</text>
+  <text class="key" x="1582.0" y="210.0">925696</text>
+  <text class="key" x="1604.0" y="210.0">929792</text>
+  <text class="trunc-info" x="1582.0" y="231.0">+5460</text>
+  <text class="label" x="1582.0" y="195.0">#311296</text>
+  <rect class="node-truncated" x="1577.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1599.0" y1="199.0" x2="1599.0" y2="221.0"/>
+  <line class="edge" x1="1621.0" y1="199.0" x2="1621.0" y2="221.0"/>
+  <text class="key" x="1588.0" y="210.0">937984</text>
+  <text class="key" x="1610.0" y="210.0">942080</text>
+  <text class="key" x="1632.0" y="210.0">946176</text>
+  <text class="trunc-info" x="1610.0" y="231.0">+5460</text>
+  <text class="label" x="1610.0" y="195.0">#316757</text>
+  <rect class="node-truncated" x="1605.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1627.0" y1="199.0" x2="1627.0" y2="221.0"/>
+  <line class="edge" x1="1649.0" y1="199.0" x2="1649.0" y2="221.0"/>
+  <text class="key" x="1616.0" y="210.0">954368</text>
+  <text class="key" x="1638.0" y="210.0">958464</text>
+  <text class="key" x="1660.0" y="210.0">962560</text>
+  <text class="trunc-info" x="1638.0" y="231.0">+5460</text>
+  <text class="label" x="1638.0" y="195.0">#322218</text>
+  <rect class="node-truncated" x="1633.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1655.0" y1="199.0" x2="1655.0" y2="221.0"/>
+  <line class="edge" x1="1677.0" y1="199.0" x2="1677.0" y2="221.0"/>
+  <text class="key" x="1644.0" y="210.0">970752</text>
+  <text class="key" x="1666.0" y="210.0">974848</text>
+  <text class="key" x="1688.0" y="210.0">978944</text>
+  <text class="trunc-info" x="1666.0" y="231.0">+5460</text>
+  <text class="label" x="1666.0" y="195.0">#327679</text>
+  <rect class="node-truncated" x="1661.0" y="199.0" width="66.0" height="22.0" rx="2"/>
+  <line class="edge" x1="1683.0" y1="199.0" x2="1683.0" y2="221.0"/>
+  <line class="edge" x1="1705.0" y1="199.0" x2="1705.0" y2="221.0"/>
+  <text class="key" x="1672.0" y="210.0">987136</text>
+  <text class="key" x="1694.0" y="210.0">991232</text>
+  <text class="key" x="1716.0" y="210.0">995328</text>
+  <text class="trunc-info" x="1694.0" y="231.0">+5649</text>
+  <text class="label" x="1694.0" y="195.0">#333141</text>
+  </g>
+</svg>
+<script>
+(function() {
+  const svg = document.querySelector('svg');
+  const g = document.getElementById('content');
+  const baseShiftX = 26.0;
+  const baseShiftY = 40.0;
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+
+  function apply() {
+    g.setAttribute('transform',
+      `translate(${baseShiftX + panX}, ${baseShiftY + panY}) scale(${zoom})`);
+  }
+
+  svg.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    // Mantem o ponto sob o cursor fixo
+    panX = mx - (mx - panX) * factor;
+    panY = my - (my - panY) * factor;
+    zoom *= factor;
+    apply();
+  }, { passive: false });
+
+  let dragging = false, lx = 0, ly = 0;
+  svg.addEventListener('mousedown', function(e) {
+    dragging = true; lx = e.clientX; ly = e.clientY;
+  });
+  svg.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    panX += e.clientX - lx;
+    panY += e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    apply();
+  });
+  function endDrag() { dragging = false; }
+  svg.addEventListener('mouseup', endDrag);
+  svg.addEventListener('mouseleave', endDrag);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'r' || e.key === 'R') {
+      zoom = 1; panX = 0; panY = 0; apply();
+    }
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>

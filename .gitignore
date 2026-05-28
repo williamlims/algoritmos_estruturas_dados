@@ -31,7 +31,7 @@ btree_program
 btree_program.exe
 main
 main.dSYM/
-test_load
+# binarios compilados vao para bin/ (ja coberto por /bin/ acima)
 
 # macOS
 .DS_Store
@@ -39,7 +39,17 @@ test_load
 # IDE
 .vscode/
 
+# Ambiente virtual Python dos experimentos
+.venv/
+
 # Outputs gerados pela B-Tree
 arvore.dat
 arvore.dat.meta
 arvore.html
+
+# Artefatos grandes gerados pelos experimentos (datasets e arvores).
+# Os resultados em experimentos/ (PNGs, CSVs, HTMLs com depth pequeno) sao versionados.
+datasets/*.csv
+arvores/*.dat
+arvores/*.dat.meta
+arvores/_tmp_build*

@@ -27,8 +27,7 @@ struct NodeRecord {
     int filhoIdx[ORDER];   // 0 = nullptr
 };
 
-// Resultado de uma busca. Guardamos diskIdx (estavel) em vez de ponteiro,
-// que poderia ser invalidado por despejos posteriores no buffer pool.
+// Resultado de uma busca. Guardamos diskIdx em vez de ponteiro,
 template <typename KeyType, int ORDER>
 struct SearchResult {
     int nodeIdx;

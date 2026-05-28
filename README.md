@@ -31,5 +31,5 @@ Para um mesmo dataset, entender como o tempo das operações se comportam com o 
 Para uma ordem fixa, identificar quanto o tempo das operações escala com o aumento do dataset.
 
 ### Operações x Cache size 
-Analisar como o tempo de execução de operações se comporta com o aumento do cache.
+Analisar como o tempo de execução de operações se comporta com o aumento dos nós em cache.
 
