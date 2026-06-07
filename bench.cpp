@@ -1,9 +1,9 @@
 // Driver de benchmark da B-Tree.
-// Compilado por ordem via -DORDER=N.
-// Mede tempo (chrono) + acessos a disco (contadores do BTreeManager) para
-// as fases insert e search, emitindo UMA linha "RESULT,..." em stdout.
+// Compilado por ordem via -DBENCH_ORDER=N.
+// Mede tempo (chrono) + acessos a disco (contadores do DiskIO, reexpostos pela
+// BTree) para as fases insert e search, emitindo UMA linha "RESULT,..." em stdout.
 
-#include "btree_manager.h"
+#include "btree.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -108,16 +108,16 @@ void runInsert(Args& a) {
     std::vector<int> ids = lerIds(a.dataset); // fora do relogio
     a.n = static_cast<int>(ids.size());
 
-    BTreeManager<int, kOrder> mgr(a.tree, a.cache);
-    mgr.resetDiskCounters();
+    BTree<int, kOrder> tree(a.tree, a.cache);
+    tree.resetDiskCounters();
 
     auto t0 = std::chrono::steady_clock::now();
-    for (int id : ids) mgr.Insert(id);
-    mgr.flush();
+    for (int id : ids) tree.insert(id);
+    tree.flush();
     auto t1 = std::chrono::steady_clock::now();
 
     double timeS = std::chrono::duration<double>(t1 - t0).count();
-    emitResult(a, timeS, mgr.getDiskReads(), mgr.getDiskWrites(), 0);
+    emitResult(a, timeS, tree.diskReads(), tree.diskWrites(), 0);
     // destrutor grava .meta e libera cache
 }
 
@@ -135,18 +135,18 @@ void runSearch(Args& a) {
     for (int i = 0; i < a.n; i++)
         queries.push_back((i % 2 == 0) ? existente(rng) : ausente(rng));
 
-    BTreeManager<int, kOrder> mgr(a.tree, a.cache); // arvore ja deve existir
-    mgr.resetDiskCounters();
+    BTree<int, kOrder> tree(a.tree, a.cache); // arvore ja deve existir
+    tree.resetDiskCounters();
 
     volatile int found = 0; // volatile evita que o laco seja otimizado fora
     auto t0 = std::chrono::steady_clock::now();
     for (int q : queries) {
-        if (mgr.mSearch(q).found) found = found + 1;
+        if (tree.search(q).found) found = found + 1;
     }
     auto t1 = std::chrono::steady_clock::now();
 
     double timeS = std::chrono::duration<double>(t1 - t0).count();
-    emitResult(a, timeS, mgr.getDiskReads(), mgr.getDiskWrites(), found);
+    emitResult(a, timeS, tree.diskReads(), tree.diskWrites(), found);
 }
 
 } // namespace

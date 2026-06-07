@@ -1,4 +1,4 @@
-#include "btree_manager.h"
+#include "btree.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -10,8 +10,8 @@ int main(int argc, char** argv) {
     int cacheSize = (argc >= 2) ? std::stoi(argv[1]) : 3;
     std::string datasetPath = (argc >= 3) ? argv[2] : "datasets/n100000.csv";
 
-    BTreeManager<int, 4> mgr("arvores/demo.dat", cacheSize);
-    std::cout << "Buffer pool: " << mgr.getMaxCacheSize() << " no(s)\n";
+    BTree<int, 4> tree("arvores/demo.dat", cacheSize);
+    std::cout << "Buffer pool: " << tree.maxCacheSize() << " no(s)\n";
 
     std::ifstream csv(datasetPath);
     if (!csv) {
@@ -29,25 +29,32 @@ int main(int argc, char** argv) {
         std::string campo;
         std::getline(ss, campo, ',');   // primeira coluna = id
         int id = std::stoi(campo);
-        mgr.Insert(id);
+        tree.insert(id);
         total++;
     }
     std::cout << "Inseridos " << total << " registros\n";
 
-    mgr.flush();   // forca gravacao de todos os nos dirty
-    std::cout << "Escritas em disco (apos flush): " << mgr.getDiskWrites() << "\n";
-    std::cout << "Leituras em disco: " << mgr.getDiskReads() << "\n";
+    tree.flush();   // forca gravacao de todos os nos dirty
+    std::cout << "Escritas em disco (apos flush): " << tree.diskWrites() << "\n";
+    std::cout << "Leituras em disco: " << tree.diskReads() << "\n";
 
     // Smoke test de busca
     for (int alvo : {1, 45, 32, 100002, 999999, 200, 0, 10000000, 1000001}) {
-        auto res = mgr.mSearch(alvo);
+        auto res = tree.search(alvo);
         std::cout << "Busca " << alvo << ": "
                   << (res.found ? "ENCONTRADO" : "nao encontrado") << "\n";
     }
 
-    // Impressao da estrutura hierarquica (limitada a 3 niveis pra nao explodir o stdout)
+    // Smoke test de remocao
+    for (int alvo : {45, 200, 999999}) {
+        bool ok = tree.remove(alvo);
+        std::cout << "Remocao " << alvo << ": "
+                  << (ok ? "removido" : "nao existia") << "\n";
+    }
+
+    // Impressao da estrutura hierarquica (limitada a 3 niveis).
     std::cout << "\n--- Estrutura da arvore (ate nivel 3) ---\n";
-    mgr.printTree(3);
+    tree.print(3);
 
     return 0;
 }
