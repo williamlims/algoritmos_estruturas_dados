@@ -10,32 +10,77 @@
 // CONSTRUCAO / DESTRUICAO / PERSISTENCIA DO META
 // ===========================================================================
 template <typename KeyType, int ORDER>
-BTree<KeyType, ORDER>::BTree(const std::string& filename, int maxCacheSize)
+BTree<KeyType, ORDER>::BTree(const std::string& filename, int maxCacheSize,
+                             SplitPolicy policy, DeletePolicy delPolicy,
+                             bool reuseNodes)
     : filename_(filename),
       io_(filename),                 // abre/cria o .dat e calcula nextIdx
       pool_(io_, maxCacheSize),      // cache sobre o DiskIO
-      rootIdx_(0) {
-    // Recupera a raiz de uma arvore previamente persistida, se houver.
+      rootIdx_(0),
+      policy_(policy),
+      delPolicy_(delPolicy),
+      reuseNodes_(reuseNodes) {
+    // Recupera a raiz e a free-list de uma arvore previamente persistida.
+    // Formato do .meta:  <rootIdx>\n <qtdLivres>\n <idx idx ...>
+    // (formato antigo, so com rootIdx, e' lido de forma compativel.)
     std::ifstream meta(filename_ + ".meta");
-    if (meta) meta >> rootIdx_;
+    if (meta) {
+        meta >> rootIdx_;
+        size_t cnt;
+        if (meta >> cnt) {
+            freeList_.clear();
+            freeList_.reserve(cnt);
+            for (size_t k = 0; k < cnt; k++) {
+                int idx;
+                if (meta >> idx) freeList_.push_back(idx);
+            }
+        }
+    }
 }
 
 template <typename KeyType, int ORDER>
 BTree<KeyType, ORDER>::~BTree() {
     pool_.flush();                              // grava nos dirty
-    std::ofstream meta(filename_ + ".meta");    // persiste a raiz
-    meta << rootIdx_;
+    std::ofstream meta(filename_ + ".meta");    // persiste raiz + free-list
+    meta << rootIdx_ << "\n";
+    meta << freeList_.size() << "\n";
+    for (int idx : freeList_) meta << idx << " ";
+    meta << "\n";
     // pool_ e io_ sao destruidos em seguida (flush final + close).
 }
 
 // ===========================================================================
-// INSERCAO
+// FREE-LIST: alocacao e liberacao de slots fisicos.
+//   allocateNode() reaproveita um slot livre (LIFO) se houver e o reuso
+//   estiver ligado; caso contrario cresce o arquivo (pool_.allocate()).
+//   freeNode() descarta o no do cache (sem writeback) e, se o reuso estiver
+//   ligado, devolve o slot para a free-list. Com reuso desligado, o slot e'
+//   simplesmente abandonado (orfao) — util para medir a ocupacao sem reuso.
+// ===========================================================================
+template <typename KeyType, int ORDER>
+typename BTree<KeyType, ORDER>::Node* BTree<KeyType, ORDER>::allocateNode() {
+    if (reuseNodes_ && !freeList_.empty()) {
+        int idx = freeList_.back();
+        freeList_.pop_back();
+        return pool_.allocateAt(idx);
+    }
+    return pool_.allocate();
+}
+
+template <typename KeyType, int ORDER>
+void BTree<KeyType, ORDER>::freeNode(int diskIdx) {
+    pool_.evict(diskIdx);
+    if (reuseNodes_) freeList_.push_back(diskIdx);
+}
+
+// ===========================================================================
+// INSERCAO  —  ponto de entrada: despacha pela estrategia escolhida.
 // ===========================================================================
 template <typename KeyType, int ORDER>
 void BTree<KeyType, ORDER>::insert(KeyType key) {
-    // CASO 1: arvore vazia -> cria a raiz.
+    // CASO 0 (comum as duas estrategias): arvore vazia -> cria a raiz folha.
     if (this->rootIdx_ == 0) {
-        Node* newRoot = this->pool_.allocate();
+        Node* newRoot = this->allocateNode();
         this->rootIdx_ = newRoot->diskIdx;
         newRoot->keys[0] = key;
         newRoot->n = 1;
@@ -43,13 +88,37 @@ void BTree<KeyType, ORDER>::insert(KeyType key) {
         return;
     }
 
-    // CASO 2: raiz cheia -> cresce a arvore (split da raiz).
+    if (policy_ == SplitPolicy::Reactive) {
+        // -------- ESTRATEGIA REATIVA (bottom-up / convencional) --------
+        // Desce, insere na folha e deixa o split propagar de baixo para cima.
+        InsertResult r = insertReactive(this->rootIdx_, key);
+        if (r.promoted) {
+            // A raiz transbordou: cresce a arvore criando uma nova raiz com a
+            // chave promovida e os dois filhos (raiz antiga + novo no direito).
+            int oldRootIdx = this->rootIdx_;
+            Node* newRoot = this->allocateNode();
+            int newRootIdx = newRoot->diskIdx;
+            this->pool_.pin(newRootIdx);
+            newRoot = this->pool_.fetch(newRootIdx);
+            newRoot->keys[0]     = r.upKey;
+            newRoot->n           = 1;
+            newRoot->filhoIdx[0] = oldRootIdx;
+            newRoot->filhoIdx[1] = r.rightIdx;
+            this->pool_.markDirty(newRoot);
+            this->pool_.unpin(newRootIdx);
+            this->rootIdx_ = newRootIdx;
+        }
+        return;
+    }
+
+    // -------- ESTRATEGIA PREEMPTIVA (top-down / estilo CLRS) --------
+    // CASO 2: raiz cheia -> cresce a arvore (split da raiz) antes de descer.
     this->pool_.pin(this->rootIdx_);
     Node* root = this->pool_.fetch(this->rootIdx_);
     if (root->n == ORDER - 1) {
         int oldRootIdx = this->rootIdx_;
 
-        Node* newRoot = this->pool_.allocate();
+        Node* newRoot = this->allocateNode();
         int newRootIdx = newRoot->diskIdx;
         this->pool_.pin(newRootIdx);
 
@@ -71,7 +140,8 @@ void BTree<KeyType, ORDER>::insert(KeyType key) {
 }
 
 // Insere 'key' numa subarvore enraizada em nodeIdx que NAO esta cheia.
-// Faz split preemptivo de qualquer filho cheio no caminho de descida.
+// [ESTRATEGIA PREEMPTIVA] Faz split preemptivo de qualquer filho cheio no
+// caminho de descida, de modo que a propagacao de split nunca sobe.
 template <typename KeyType, int ORDER>
 void BTree<KeyType, ORDER>::insertNonFull(int nodeIdx, KeyType key) {
     pool_.pin(nodeIdx);
@@ -125,7 +195,7 @@ void BTree<KeyType, ORDER>::splitChild(int nodeIdx, int paiIdx, int i) {
     pool_.pin(nodeIdx);
     pool_.pin(paiIdx);
 
-    Node* newNode = pool_.allocate();
+    Node* newNode = allocateNode();
     int newNodeIdx = newNode->diskIdx;
     pool_.pin(newNodeIdx);
 
@@ -167,6 +237,141 @@ void BTree<KeyType, ORDER>::splitChild(int nodeIdx, int paiIdx, int i) {
     pool_.unpin(nodeIdx);
     pool_.unpin(paiIdx);
     pool_.unpin(newNodeIdx);
+}
+
+// ---------------------------------------------------------------------------
+// INSERCAO REATIVA (bottom-up / convencional)
+//
+// Desce ate a folha SEM dividir nada. Insere a chave. Se o no transbordar
+// (passar a ter ORDER chaves), divide-o em torno de mid = ORDER/2, promovendo
+// a chave do meio. A promocao sobe pela pilha de recursao: cada ancestral
+// recebe (upKey, rightIdx); se ele tambem transbordar, divide e promove de
+// novo. A raiz e' tratada pelo chamador (insert), que cresce a arvore.
+//
+// Particao de um no com ORDER chaves (mid = ORDER/2):
+//   esquerdo  -> ORDER/2 chaves          (>= ocupacao minima p/ todo m>=3)
+//   promovida -> chave em mid
+//   direito   -> ceil(ORDER/2)-1 chaves  (>= ocupacao minima p/ todo m>=3)
+// Diferente do split preemptivo, isto NUNCA gera no com 0 chaves: vale p/ m=3.
+//
+// Pinagem: o pai permanece pinado durante a recursao no filho, para que seu
+// ponteiro continue valido ao inserir a chave promovida no retorno. O pool
+// tolera o "soft overflow" temporario de manter o caminho (altura) pinado.
+// ---------------------------------------------------------------------------
+template <typename KeyType, int ORDER>
+typename BTree<KeyType, ORDER>::InsertResult
+BTree<KeyType, ORDER>::insertReactive(int nodeIdx, KeyType key) {
+    pool_.pin(nodeIdx);
+    Node* node = pool_.fetch(nodeIdx);
+
+    // ---------------- FOLHA ----------------
+    if (node->isLeaf()) {
+        int pos = node->n;
+        while (pos > 0 && key < node->keys[pos - 1]) pos--;
+
+        if (node->n < ORDER - 1) {                 // cabe: insercao simples
+            for (int j = node->n; j > pos; j--) node->keys[j] = node->keys[j - 1];
+            node->keys[pos] = key;
+            node->n++;
+            pool_.markDirty(node);
+            pool_.unpin(nodeIdx);
+            return {false, KeyType{}, 0};
+        }
+
+        // Transbordo: monta ORDER chaves num buffer local e divide.
+        KeyType tmp[ORDER];
+        for (int j = 0; j < pos; j++)            tmp[j]     = node->keys[j];
+        tmp[pos] = key;
+        for (int j = pos; j < node->n; j++)      tmp[j + 1] = node->keys[j];
+
+        const int mid = ORDER / 2;               // chave promovida
+        const int rn  = (ORDER - 1) - mid;       // chaves no no direito
+
+        pool_.pin(nodeIdx);                      // protege antes de alocar
+        Node* right = allocateNode();
+        int rightIdx = right->diskIdx;
+        pool_.pin(rightIdx);
+        node  = pool_.fetch(nodeIdx);            // re-fetch (pinado: cache hit)
+        right = pool_.fetch(rightIdx);
+
+        node->n = mid;
+        for (int j = 0; j < mid; j++) node->keys[j] = tmp[j];
+        right->n = rn;
+        for (int j = 0; j < rn; j++) right->keys[j] = tmp[mid + 1 + j];
+
+        pool_.markDirty(node);
+        pool_.markDirty(right);
+        KeyType up = tmp[mid];
+        pool_.unpin(rightIdx);
+        pool_.unpin(nodeIdx);                    // do pin extra acima
+        pool_.unpin(nodeIdx);                    // do pin de entrada
+        return {true, up, rightIdx};
+    }
+
+    // ---------------- NO INTERNO ----------------
+    // Localiza o filho que recebe a chave (mesmo criterio do insertNonFull).
+    int i = node->n - 1;
+    while (i >= 0 && key < node->keys[i]) i--;
+    i++;
+    int childIdx = node->filhoIdx[i];
+
+    // Recursao com o pai ainda pinado (precisamos dele de volta no retorno).
+    InsertResult r = insertReactive(childIdx, key);
+    node = pool_.fetch(nodeIdx);                 // pinado: cache hit
+
+    if (!r.promoted) {                           // filho absorveu sem dividir
+        pool_.unpin(nodeIdx);
+        return {false, KeyType{}, 0};
+    }
+
+    // O filho dividiu: insere (upKey em i, rightIdx em i+1) neste no.
+    if (node->n < ORDER - 1) {                   // cabe aqui: para a propagacao
+        for (int j = node->n;     j > i;     j--) node->keys[j]     = node->keys[j - 1];
+        for (int j = node->n + 1; j > i + 1; j--) node->filhoIdx[j] = node->filhoIdx[j - 1];
+        node->keys[i]         = r.upKey;
+        node->filhoIdx[i + 1] = r.rightIdx;
+        node->n++;
+        pool_.markDirty(node);
+        pool_.unpin(nodeIdx);
+        return {false, KeyType{}, 0};
+    }
+
+    // Este no tambem transborda: monta ORDER chaves / ORDER+1 filhos e divide.
+    KeyType tmpKeys[ORDER];
+    int     tmpCh[ORDER + 1];
+    for (int j = 0; j < i; j++)            tmpKeys[j]     = node->keys[j];
+    tmpKeys[i] = r.upKey;
+    for (int j = i; j < node->n; j++)      tmpKeys[j + 1] = node->keys[j];
+    for (int j = 0; j <= i; j++)           tmpCh[j]       = node->filhoIdx[j];
+    tmpCh[i + 1] = r.rightIdx;
+    for (int j = i + 1; j <= node->n; j++) tmpCh[j + 1]   = node->filhoIdx[j];
+
+    const int mid = ORDER / 2;
+    const int rn  = (ORDER - 1) - mid;
+
+    pool_.pin(nodeIdx);
+    Node* right = allocateNode();
+    int rightIdx = right->diskIdx;
+    pool_.pin(rightIdx);
+    node  = pool_.fetch(nodeIdx);
+    right = pool_.fetch(rightIdx);
+
+    node->n = mid;
+    for (int j = 0; j < mid; j++)  node->keys[j]     = tmpKeys[j];
+    for (int j = 0; j <= mid; j++) node->filhoIdx[j] = tmpCh[j];
+    for (int j = mid + 1; j < ORDER; j++) node->filhoIdx[j] = 0;  // limpa cauda
+
+    right->n = rn;
+    for (int j = 0; j < rn; j++)  right->keys[j]     = tmpKeys[mid + 1 + j];
+    for (int j = 0; j <= rn; j++) right->filhoIdx[j] = tmpCh[mid + 1 + j];
+
+    pool_.markDirty(node);
+    pool_.markDirty(right);
+    KeyType up = tmpKeys[mid];
+    pool_.unpin(rightIdx);
+    pool_.unpin(nodeIdx);                        // do pin extra acima
+    pool_.unpin(nodeIdx);                        // do pin de entrada
+    return {true, up, rightIdx};
 }
 
 // ===========================================================================
@@ -222,17 +427,22 @@ template <typename KeyType, int ORDER>
 bool BTree<KeyType, ORDER>::remove(KeyType key) {
     if (rootIdx_ == 0) return false;
 
-    bool existed = removeFromSubtree(rootIdx_, key);
+    bool existed = (delPolicy_ == DeletePolicy::Reactive)
+                       ? removeReactive(rootIdx_, key)
+                       : removeFromSubtree(rootIdx_, key);
 
-    // Reducao de altura: se a raiz esvaziou, seu unico filho assume.
+    // Reducao de altura: se a raiz esvaziou, seu unico filho assume e o slot
+    // antigo da raiz e' reciclado pela free-list.
     int oldRoot = rootIdx_;
     pool_.pin(oldRoot);
     Node* root = pool_.fetch(oldRoot);
-    if (root->n == 0) {
-        rootIdx_ = root->isLeaf() ? 0 : root->filhoIdx[0];
-        // O slot antigo da raiz fica orfao no disco (sem free-list).
-    }
+    bool collapse = (root->n == 0);
+    int  newRoot  = collapse ? (root->isLeaf() ? 0 : root->filhoIdx[0]) : rootIdx_;
     pool_.unpin(oldRoot);
+    if (collapse) {
+        freeNode(oldRoot);
+        rootIdx_ = newRoot;
+    }
     return existed;
 }
 
@@ -499,7 +709,7 @@ void BTree<KeyType, ORDER>::borrowFromNext(int paiIdx, int i) {
 
 // Funde o filho i+1 dentro do filho i, puxando para baixo o separador (chave i)
 // do pai. Apos: o pai perde a chave i e o ponteiro i+1; o filho i passa a ter
-// (n_esq + 1 + n_dir) chaves. O slot do filho direito fica orfao em disco.
+// (n_esq + 1 + n_dir) chaves. O slot do filho direito e' reciclado (free-list).
 template <typename KeyType, int ORDER>
 void BTree<KeyType, ORDER>::mergeChildren(int paiIdx, int i) {
     pool_.pin(paiIdx);
@@ -536,6 +746,119 @@ void BTree<KeyType, ORDER>::mergeChildren(int paiIdx, int i) {
     pool_.unpin(leftIdx);
     pool_.unpin(rightIdx);
     pool_.unpin(paiIdx);
+
+    // O no direito foi absorvido: recicla seu slot fisico.
+    freeNode(rightIdx);
+}
+
+// ===========================================================================
+// REMOCAO REATIVA (bottom-up / convencional)
+//
+// Espelho da insercao reativa. Desce ate a folha SEM rebalancear no caminho;
+// remove a chave la; e, na VOLTA da recursao, se o filho visitado ficou com
+// menos que kMinKeysReactive chaves, conserta o underflow (emprestimo de um
+// irmao com folga, ou fusao). A fusao combina um no deficiente (kMin-1) com um
+// irmao no minimo (kMin) => 2*kMin <= ORDER-1 para todo ORDER, inclusive
+// ORDER=3. Por isso esta familia vale para qualquer m >= 3.
+//
+// Chave em no INTERNO: troca-se pela maior chave da subarvore esquerda
+// (predecessor) e remove-se o predecessor recursivamente — toda remocao fisica
+// acontece numa folha, como na arvore-B classica.
+// ===========================================================================
+template <typename KeyType, int ORDER>
+bool BTree<KeyType, ORDER>::removeReactive(int nodeIdx, KeyType key) {
+    pool_.pin(nodeIdx);
+    Node* node = pool_.fetch(nodeIdx);
+
+    int i = 0;
+    while (i < node->n && key > node->keys[i]) i++;
+    bool here = (i < node->n && node->keys[i] == key);
+
+    if (here && node->isLeaf()) {            // CASO 1: chave numa folha
+        removeFromLeaf(node, i);
+        pool_.markDirty(node);
+        pool_.unpin(nodeIdx);
+        return true;
+    }
+
+    if (here) {                              // CASO 2: chave num no interno
+        int leftChild = node->filhoIdx[i];
+        pool_.unpin(nodeIdx);
+        KeyType pred = getPredecessor(leftChild);
+        node = pool_.fetch(nodeIdx);
+        pool_.pin(nodeIdx);
+        node->keys[i] = pred;
+        pool_.markDirty(node);
+        pool_.unpin(nodeIdx);
+        removeReactive(leftChild, pred);     // remove o predecessor na folha
+        fixUnderflow(nodeIdx, i);            // conserta o filho i na volta
+        return true;
+    }
+
+    if (node->isLeaf()) {                    // chave nao existe na arvore
+        pool_.unpin(nodeIdx);
+        return false;
+    }
+
+    // CASO 3: desce no filho i; conserta o underflow dele na volta.
+    int childIdx = node->filhoIdx[i];
+    int childPos = i;
+    pool_.unpin(nodeIdx);
+    bool existed = removeReactive(childIdx, key);
+    if (existed) fixUnderflow(nodeIdx, childPos);
+    return existed;
+}
+
+// Conserta o filho i de paiIdx caso ele esteja abaixo do minimo
+// (kMinKeysReactive). Emprestimo de um irmao com folga, ou fusao. A fusao pode
+// deixar o pai abaixo do minimo, o que sera consertado pelo chamador acima.
+template <typename KeyType, int ORDER>
+void BTree<KeyType, ORDER>::fixUnderflow(int paiIdx, int i) {
+    pool_.pin(paiIdx);
+    Node* pai = pool_.fetch(paiIdx);
+    int childIdx = pai->filhoIdx[i];
+
+    pool_.pin(childIdx);
+    int childN = pool_.fetch(childIdx)->n;
+    pool_.unpin(childIdx);
+
+    if (childN >= kMinKeysReactive) {        // sem underflow: nada a fazer
+        pool_.unpin(paiIdx);
+        return;
+    }
+
+    // Empresta do irmao esquerdo, se tiver folga (> kMinKeysReactive).
+    if (i > 0) {
+        int leftSib = pai->filhoIdx[i - 1];
+        pool_.pin(leftSib);
+        int sibN = pool_.fetch(leftSib)->n;
+        pool_.unpin(leftSib);
+        if (sibN > kMinKeysReactive) {
+            borrowFromPrev(paiIdx, i);
+            pool_.unpin(paiIdx);
+            return;
+        }
+    }
+
+    // Empresta do irmao direito, se tiver folga.
+    pai = pool_.fetch(paiIdx);
+    if (i < pai->n) {
+        int rightSib = pai->filhoIdx[i + 1];
+        pool_.pin(rightSib);
+        int sibN = pool_.fetch(rightSib)->n;
+        pool_.unpin(rightSib);
+        if (sibN > kMinKeysReactive) {
+            borrowFromNext(paiIdx, i);
+            pool_.unpin(paiIdx);
+            return;
+        }
+    }
+
+    // Sem irmao folgado: funde. Se i e' o ultimo filho, funde com o anterior.
+    pai = pool_.fetch(paiIdx);
+    int mergeAt = (i < pai->n) ? i : i - 1;
+    pool_.unpin(paiIdx);
+    mergeChildren(paiIdx, mergeAt);
 }
 
 // ===========================================================================

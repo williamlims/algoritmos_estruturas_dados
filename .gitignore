@@ -17,7 +17,6 @@ Makefile
 # Arquivos de build
 /build/
 /bin/
-/out/
 
 # Arquivos temporários
 *.log

@@ -1,29 +1,30 @@
 // ============================================================================
-//  benchmark.cpp  —  Driver unico de benchmark da B-Tree.
+//  benchmark.cpp  —  Driver UNICO: validacao + benchmarks da B-Tree.
 //
-//  Diferente do bench.cpp original (que recompila por ordem via -DBENCH_ORDER),
-//  este binario instancia a BTree para VARIAS ordens de uma vez e despacha em
-//  runtime por um switch. Um unico executavel varre todo o espaco de parametros
-//  e emite CSV "tidy" (uma linha por fase) para o pandas/matplotlib.
+//  Fluxo:
+//    1) VALIDACAO (oraculo std::set): para cada ordem e cada familia de
+//       algoritmo, confere insert/search/remove contra um std::set, com reuso
+//       de nos ligado e desligado, e re-verifica apos reabrir o arquivo
+//       (persistencia + free-list persistida). Marca cada ordem como VALIDA
+//       por familia. A familia preemptiva e' invalida em m=3 (degenera).
+//    2) BENCHMARKS: varre ordem x N x padrao(seq/rand) x cache x familia x
+//       reuso, medindo por fase (insert/search/delete):
+//         - reads/writes de disco (metrica logica principal),
+//         - tempo de parede / CPU-usuario / CPU-sistema (getrusage),
+//         - ocupacao do arquivo (slots fisicos) e nos vivos (BFS no .dat),
+//         - altura da arvore.
+//       Emite CSV "tidy" (uma linha por fase) para plotagem em Python.
 //
-//  Mede, por configuracao (ordem m, tamanho N, padrao de insercao, cache):
-//    * INSERT : reads/writes de disco, tempo (wall / CPU-user / CPU-sys),
-//               e a ocupacao do arquivo logo apos a construcao.
-//    * SEARCH : reads/writes e tempo de M buscas (50% existentes / 50% nao).
-//    * DELETE : reads/writes e tempo ao remover uma fracao das chaves,
-//               e a ocupacao do arquivo APOS as remocoes (orfaos surgem).
+//  Duas FAMILIAS de algoritmo (escolha pareada split+remocao):
+//    reactive   : bottom-up, correto para todo m>=3 (PADRAO).
+//    preemptive : top-down estilo CLRS, valido so para m>=4.
 //
-//  Ocupacao: o DiskIO nao tem free-list -> slots = arquivo/recordSize nunca
-//  encolhe. Contamos os nos VIVOS (alcancaveis da raiz, lendo o .dat cru) e
-//  derivamos:
-//      bytes_sem_reuso = slots_alocados * recordSize  (= tamanho real do .dat)
-//      bytes_com_reuso = nos_vivos       * recordSize  (compactacao ideal)
-//  A diferenca = fragmentacao por nos orfaos, visivel apos remocoes.
+//  Reaproveitamento de nos (free-list): com reuso ligado, slots liberados em
+//  fusoes/colapsos da raiz sao reciclados -> o arquivo cresce menos. Comparar
+//  reuse=1 x reuse=0 quantifica a economia de ocupacao em disco.
 //
-//  Tempo: chrono = relogio de parede; getrusage separa CPU-usuario (algoritmo)
-//  de CPU-sistema (syscalls de I/O — o DiskIO faz flush por gravacao).
-//  wall-(user+sys) ~ espera real de dispositivo (~0 com page cache quente);
-//  por isso a metrica PRINCIPAL e' o contador LOGICO reads/writes.
+//  Nota sobre tempo: wall-(user+sys) ~ espera de dispositivo; com page cache
+//  quente fica ~0. Por isso a metrica PRINCIPAL e' o contador LOGICO de I/O.
 // ============================================================================
 
 #include "btree.h"
@@ -65,6 +66,14 @@ struct CpuClock {
     }
 };
 
+// ---- Familia de algoritmo --------------------------------------------------
+enum class Family { Reactive, Preemptive };
+const char* familyName(Family f) { return f == Family::Reactive ? "reactive" : "preemptive"; }
+SplitPolicy  splitOf(Family f)  { return f == Family::Reactive ? SplitPolicy::Reactive  : SplitPolicy::Preemptive; }
+DeletePolicy deleteOf(Family f) { return f == Family::Reactive ? DeletePolicy::Reactive : DeletePolicy::Preemptive; }
+// Familia preemptiva degenera em m=3.
+bool familyValidForOrder(Family f, int order) { return !(f == Family::Preemptive && order == 3); }
+
 // ---- Ocupacao: le o .dat cru, BFS a partir da raiz (do .meta) -------------
 struct Occupancy { long slots = 0, live = 0, height = 0, recordSize = 0, fileBytes = 0; };
 
@@ -80,7 +89,7 @@ Occupancy measureOccupancy(const std::string& datPath) {
     occ.slots     = occ.recordSize ? occ.fileBytes / occ.recordSize : 0;
 
     int root = 0;
-    { std::ifstream m(datPath + ".meta"); if (m) m >> root; }
+    { std::ifstream m(datPath + ".meta"); if (m) m >> root; }   // 1a linha = rootIdx
     if (root <= 0) return occ;
 
     auto readRec = [&](int idx, Rec& rec) -> bool {
@@ -107,25 +116,35 @@ Occupancy measureOccupancy(const std::string& datPath) {
     return occ;
 }
 
-// ---- Sonda de correcao rapida (BTree vs std::set). Pega o m=3 degenerado ---
+// ===========================================================================
+// VALIDACAO contra oraculo std::set
+// ===========================================================================
 template <int ORDER>
-bool correctnessProbe(unsigned seed, int ops, int cache) {
-    std::string path = "arvores/probe_O" + std::to_string(ORDER) + ".dat";
+bool validateOne(Family fam, bool reuse, unsigned seed, int ops, int cache) {
+    std::string path = "arvores/val_O" + std::to_string(ORDER) + ".dat";
     std::remove(path.c_str()); std::remove((path + ".meta").c_str());
-    std::set<int> oracle;
+    std::set<int> ref;
     std::mt19937 rng(seed);
     std::uniform_int_distribution<int> keyDist(1, ops / 2 + 1);
     std::uniform_int_distribution<int> opDist(0, 2);
     bool ok = true;
     {
-        BTree<int, ORDER> tree(path, cache);
+        BTree<int, ORDER> tree(path, cache, splitOf(fam), deleteOf(fam), reuse);
         for (int s = 0; s < ops && ok; s++) {
             int op = opDist(rng), key = keyDist(rng);
-            if (op == 2) { if (tree.remove(key) != (oracle.erase(key) > 0)) ok = false; }
-            else { if (oracle.insert(key).second) tree.insert(key); }
+            if (op == 2) { if (tree.remove(key) != (ref.erase(key) > 0)) ok = false; }
+            else { if (ref.insert(key).second) tree.insert(key); }
             int pr = keyDist(rng);
-            if (tree.search(pr).found != (oracle.count(pr) > 0)) ok = false;
+            if (ok && tree.search(pr).found != (ref.count(pr) > 0)) ok = false;
         }
+        if (ok)
+            for (int k = 1; k <= ops / 2 + 1 && ok; k++)
+                if (tree.search(k).found != (ref.count(k) > 0)) ok = false;
+    }
+    if (ok) {   // reabre do disco e revalida (persistencia + free-list)
+        BTree<int, ORDER> tree(path, cache, splitOf(fam), deleteOf(fam), reuse);
+        for (int k = 1; k <= ops / 2 + 1 && ok; k++)
+            if (tree.search(k).found != (ref.count(k) > 0)) ok = false;
     }
     std::remove(path.c_str()); std::remove((path + ".meta").c_str());
     return ok;
@@ -134,15 +153,15 @@ bool correctnessProbe(unsigned seed, int ops, int cache) {
 // ---- Config e CSV ----------------------------------------------------------
 struct Cfg {
     int order; long n; std::string pattern; int cache;
+    Family family; bool reuse;
     double delFraction; long searchQ; unsigned seed; bool valid; std::string exp;
 };
 
 void emitHeader(std::ostream& os) {
-    os << "exp,order,n,pattern,cache,valid,phase,ops,"
+    os << "exp,order,n,pattern,cache,family,reuse,valid,phase,ops,"
           "reads,writes,io_total,io_per_op,"
           "wall_s,cpu_user_s,cpu_sys_s,io_wait_s,"
-          "record_bytes,file_bytes,slots,live_nodes,"
-          "bytes_no_reuse,bytes_reuse,height\n";
+          "record_bytes,file_bytes,slots,live_nodes,height\n";
 }
 
 void emitRow(std::ostream& os, const Cfg& c, const std::string& phase,
@@ -153,11 +172,12 @@ void emitRow(std::ostream& os, const Cfg& c, const std::string& phase,
     double perOp = ops > 0 ? double(ioTotal) / double(ops) : 0.0;
     double wait  = wall - (user + sys); if (wait < 0) wait = 0;
     os << c.exp << ',' << c.order << ',' << c.n << ',' << c.pattern << ','
-       << c.cache << ',' << (c.valid ? 1 : 0) << ',' << phase << ','
+       << c.cache << ',' << familyName(c.family) << ',' << (c.reuse ? 1 : 0) << ','
+       << (c.valid ? 1 : 0) << ',' << phase << ','
        << ops << ',' << reads << ',' << writes << ',' << ioTotal << ',' << perOp << ','
        << wall << ',' << user << ',' << sys << ',' << wait << ','
        << recordBytes << ',' << fileBytes << ',' << slots << ',' << live << ','
-       << (slots * recordBytes) << ',' << (live * recordBytes) << ',' << height << '\n';
+       << height << '\n';
 }
 
 // ---- Roda uma configuracao completa (insert + search + delete) -------------
@@ -166,37 +186,38 @@ void runConfig(std::ostream& os, const Cfg& c) {
     std::string path = "arvores/bench_O" + std::to_string(ORDER) + ".dat";
     std::remove(path.c_str()); std::remove((path + ".meta").c_str());
 
-    // Conjunto = {1..N} nos dois padroes; muda so a ORDEM de insercao.
     std::vector<int> keys(c.n);
     std::iota(keys.begin(), keys.end(), 1);
     std::mt19937 rng(c.seed);
     if (c.pattern == "rand") std::shuffle(keys.begin(), keys.end(), rng);
 
     long recBytes = static_cast<long>(sizeof(NodeRecord<int, ORDER>));
+    SplitPolicy sp = splitOf(c.family); DeletePolicy dp = deleteOf(c.family);
 
     // ===== INSERT =====
     long insReads = 0, insWrites = 0; double insWall = 0, insUser = 0, insSys = 0;
     {
-        BTree<int, ORDER> tree(path, c.cache);
+        BTree<int, ORDER> tree(path, c.cache, sp, dp, c.reuse);
         tree.resetDiskCounters();
         CpuClock clk; clk.start();
         for (int k : keys) tree.insert(k);
         tree.flush();
         clk.stop(insWall, insUser, insSys);
         insReads = tree.diskReads(); insWrites = tree.diskWrites();
-    } // fecha -> persiste .meta
+    }
     Occupancy occIns = measureOccupancy<ORDER>(path);
     emitRow(os, c, "insert", c.n, insReads, insWrites, insWall, insUser, insSys,
             recBytes, occIns.fileBytes, occIns.slots, occIns.live, occIns.height);
 
-    // ===== SEARCH + DELETE (reabre a arvore persistida) =====
+    // ===== SEARCH + DELETE + REINSERT (reabre a arvore persistida) =====
     long seOps = 0, seReads = 0, seWrites = 0; double seWall = 0, seUser = 0, seSys = 0;
     long delOps = 0, delReads = 0, delWrites = 0; double delWall = 0, delUser = 0, delSys = 0;
+    long reinsOps = 0, reinsReads = 0, reinsWrites = 0; double reinsWall = 0, reinsUser = 0, reinsSys = 0;
+    long ndel = (long)(c.delFraction * c.n);
     {
-        BTree<int, ORDER> tree(path, c.cache);
+        BTree<int, ORDER> tree(path, c.cache, sp, dp, c.reuse);
 
-        // --- SEARCH: 50% existentes (1..N), 50% ausentes (>N) ---
-        {
+        {   // SEARCH: 50% existentes, 50% ausentes
             std::mt19937 qrng(c.seed + 7);
             std::uniform_int_distribution<int> hit(1, (int)c.n);
             std::uniform_int_distribution<int> miss((int)c.n + 1, (int)c.n + 1000000);
@@ -211,9 +232,7 @@ void runConfig(std::ostream& os, const Cfg& c) {
             seOps = (long)q.size(); seReads = tree.diskReads(); seWrites = tree.diskWrites();
         }
 
-        // --- DELETE: remove uma fracao aleatoria de {1..N} ---
-        {
-            long ndel = (long)(c.delFraction * c.n);
+        {   // DELETE: remove uma fracao aleatoria de {1..N}
             std::vector<int> del(c.n);
             std::iota(del.begin(), del.end(), 1);
             std::mt19937 drng(c.seed + 99);
@@ -227,7 +246,22 @@ void runConfig(std::ostream& os, const Cfg& c) {
             clk.stop(delWall, delUser, delSys); (void)removed;
             delOps = ndel; delReads = tree.diskReads(); delWrites = tree.diskWrites();
         }
-    } // fecha -> persiste .meta pos-delete
+
+        {   // REINSERT (churn): insere ndel chaves NOVAS (acima do range). Aqui a
+            // free-list e' exercitada: com reuso, as alocacoes reusam slots
+            // liberados pelas remocoes e o arquivo NAO cresce; sem reuso, cresce.
+            std::vector<int> add(ndel);
+            for (long i = 0; i < ndel; i++) add[i] = (int)(c.n + 1 + i);
+            std::mt19937 arng(c.seed + 123);
+            std::shuffle(add.begin(), add.end(), arng);
+            tree.resetDiskCounters();
+            CpuClock clk; clk.start();
+            for (int x : add) tree.insert(x);
+            tree.flush();
+            clk.stop(reinsWall, reinsUser, reinsSys);
+            reinsOps = ndel; reinsReads = tree.diskReads(); reinsWrites = tree.diskWrites();
+        }
+    }
 
     emitRow(os, c, "search", seOps, seReads, seWrites, seWall, seUser, seSys,
             recBytes, 0, 0, 0, occIns.height);
@@ -235,6 +269,11 @@ void runConfig(std::ostream& os, const Cfg& c) {
     Occupancy occDel = measureOccupancy<ORDER>(path);
     emitRow(os, c, "delete", delOps, delReads, delWrites, delWall, delUser, delSys,
             recBytes, occDel.fileBytes, occDel.slots, occDel.live, occDel.height);
+
+    Occupancy occFin = measureOccupancy<ORDER>(path);
+    emitRow(os, c, "reinsert", reinsOps, reinsReads, reinsWrites,
+            reinsWall, reinsUser, reinsSys,
+            recBytes, occFin.fileBytes, occFin.slots, occFin.live, occFin.height);
 
     std::remove(path.c_str()); std::remove((path + ".meta").c_str());
 }
@@ -244,6 +283,7 @@ bool dispatch(std::ostream& os, const Cfg& c) {
     switch (c.order) {
         case 3:    runConfig<3>(os, c);    return true;
         case 4:    runConfig<4>(os, c);    return true;
+        case 5:    runConfig<5>(os, c);    return true;
         case 8:    runConfig<8>(os, c);    return true;
         case 16:   runConfig<16>(os, c);   return true;
         case 32:   runConfig<32>(os, c);   return true;
@@ -257,20 +297,21 @@ bool dispatch(std::ostream& os, const Cfg& c) {
         default: std::cerr << "ordem nao instanciada: " << c.order << "\n"; return false;
     }
 }
-bool dispatchProbe(int order, unsigned seed, int ops, int cache) {
+bool dispatchValidate(int order, Family fam, bool reuse, unsigned seed, int ops, int cache) {
     switch (order) {
-        case 3:    return correctnessProbe<3>(seed, ops, cache);
-        case 4:    return correctnessProbe<4>(seed, ops, cache);
-        case 8:    return correctnessProbe<8>(seed, ops, cache);
-        case 16:   return correctnessProbe<16>(seed, ops, cache);
-        case 32:   return correctnessProbe<32>(seed, ops, cache);
-        case 64:   return correctnessProbe<64>(seed, ops, cache);
-        case 100:  return correctnessProbe<100>(seed, ops, cache);
-        case 128:  return correctnessProbe<128>(seed, ops, cache);
-        case 256:  return correctnessProbe<256>(seed, ops, cache);
-        case 512:  return correctnessProbe<512>(seed, ops, cache);
-        case 1000: return correctnessProbe<1000>(seed, ops, cache);
-        case 1024: return correctnessProbe<1024>(seed, ops, cache);
+        case 3:    return validateOne<3>(fam, reuse, seed, ops, cache);
+        case 4:    return validateOne<4>(fam, reuse, seed, ops, cache);
+        case 5:    return validateOne<5>(fam, reuse, seed, ops, cache);
+        case 8:    return validateOne<8>(fam, reuse, seed, ops, cache);
+        case 16:   return validateOne<16>(fam, reuse, seed, ops, cache);
+        case 32:   return validateOne<32>(fam, reuse, seed, ops, cache);
+        case 64:   return validateOne<64>(fam, reuse, seed, ops, cache);
+        case 100:  return validateOne<100>(fam, reuse, seed, ops, cache);
+        case 128:  return validateOne<128>(fam, reuse, seed, ops, cache);
+        case 256:  return validateOne<256>(fam, reuse, seed, ops, cache);
+        case 512:  return validateOne<512>(fam, reuse, seed, ops, cache);
+        case 1000: return validateOne<1000>(fam, reuse, seed, ops, cache);
+        case 1024: return validateOne<1024>(fam, reuse, seed, ops, cache);
         default:   return false;
     }
 }
@@ -285,19 +326,113 @@ std::vector<std::string> parseStrList(const std::string& s) {
     while (std::getline(ss, t, ',')) if (!t.empty()) v.push_back(t);
     return v;
 }
+std::vector<Family> parseFamilies(const std::string& s) {
+    std::vector<Family> v;
+    for (auto& t : parseStrList(s)) {
+        if (t == "reactive")        v.push_back(Family::Reactive);
+        else if (t == "preemptive") v.push_back(Family::Preemptive);
+        else { std::cerr << "familia desconhecida: " << t << "\n"; std::exit(2); }
+    }
+    return v;
+}
+
+// ===========================================================================
+// FASE 1: validacao (sempre, salvo --no-validate)
+// ===========================================================================
+std::map<std::pair<int,int>, bool> runValidation(const std::vector<long>& orders,
+                                                 const std::vector<Family>& families,
+                                                 const std::vector<int>& reuses,
+                                                 unsigned seed, const std::string& outDir) {
+    std::cerr << "==== VALIDACAO (oraculo std::set) ====\n";
+    std::ofstream vcsv(outDir + "/validity.csv");
+    vcsv << "order,family,reuse,seed,result\n";
+    std::map<std::pair<int,int>, bool> validOf;  // (order, family) -> valido
+    bool allOk = true;
+    for (long o : orders) {
+        for (Family fam : families) {
+            int fkey = (fam == Family::Reactive ? 0 : 1);
+            if (!familyValidForOrder(fam, (int)o)) {
+                validOf[{(int)o, fkey}] = false;
+                std::cerr << "  [m=" << o << "] " << familyName(fam)
+                          << "  -> N/A (degenera em m=3)\n";
+                vcsv << o << ',' << familyName(fam) << ",-,-," << "na\n";
+                continue;
+            }
+            bool ok = true;
+            for (int reuse : reuses)
+                for (unsigned s = seed; s < seed + 3 && ok; s++) {
+                    bool r = dispatchValidate((int)o, fam, reuse != 0, s, 6000, 3);
+                    vcsv << o << ',' << familyName(fam) << ',' << reuse << ',' << s
+                         << ',' << (r ? "ok" : "FALHA") << '\n';
+                    ok = ok && r;
+                }
+            validOf[{(int)o, fkey}] = ok;
+            allOk = allOk && ok;
+            std::cerr << "  [m=" << o << "] " << familyName(fam)
+                      << "  reuse{" ;
+            for (size_t i=0;i<reuses.size();i++) std::cerr << reuses[i] << (i+1<reuses.size()?",":"");
+            std::cerr << "}  -> " << (ok ? "VALIDA" : "FALHA") << "\n";
+        }
+    }
+    std::cerr << (allOk ? ">> validacao OK\n" : ">> VALIDACAO FALHOU\n");
+    return validOf;
+}
+
+// ===========================================================================
+// FASE 2: varredura de benchmark
+// ===========================================================================
+void runSweep(std::ostream& os, const std::string& exp,
+              const std::vector<long>& orders, const std::vector<long>& sizes,
+              const std::vector<std::string>& patterns, const std::vector<long>& caches,
+              const std::vector<Family>& families, const std::vector<int>& reuses,
+              double delFraction, long searchQ, unsigned seed,
+              const std::map<std::pair<int,int>, bool>& validOf) {
+    long total = (long)orders.size()*sizes.size()*patterns.size()*caches.size()
+                 *families.size()*reuses.size();
+    long done = 0;
+    for (long o : orders)
+      for (Family fam : families) {
+        if (!familyValidForOrder(fam, (int)o)) { done += sizes.size()*patterns.size()*caches.size()*reuses.size(); continue; }
+        int fkey = (fam == Family::Reactive ? 0 : 1);
+        bool valid = true;
+        auto it = validOf.find({(int)o, fkey});
+        if (it != validOf.end()) valid = it->second;
+        for (long n : sizes)
+          for (const auto& p : patterns)
+            for (long cache : caches)
+              for (int reuse : reuses) {
+                Cfg c; c.order=(int)o; c.n=n; c.pattern=p; c.cache=(int)cache;
+                c.family=fam; c.reuse=(reuse!=0);
+                c.delFraction=delFraction; c.searchQ=std::min<long>(searchQ, n*2);
+                c.seed=seed; c.valid=valid; c.exp=exp;
+                std::cerr << "[" << exp << " " << (++done) << "/" << total << "] m=" << o
+                          << " n=" << n << " " << p << " cache=" << cache
+                          << " " << familyName(fam) << " reuse=" << reuse
+                          << (valid ? "" : " (INVALIDA)") << "\n";
+                dispatch(os, c);
+                os.flush();
+            }
+      }
+}
 
 } // namespace
 
 int main(int argc, char** argv) {
+    // Defaults (rapidos). Para o estudo final, escale via flags (ex.: N ate 1e6).
     std::vector<long>        orders   = {3, 4, 8, 16, 32, 64, 128, 256};
     std::vector<long>        sizes    = {1000, 10000, 100000};
     std::vector<std::string> patterns = {"seq", "rand"};
     std::vector<long>        caches   = {3};
+    std::vector<Family>      families = {Family::Reactive};
+    std::vector<int>         reuses   = {1};
     double   delFraction = 0.5;
     long     searchQ     = 20000;
     unsigned seed        = 42;
     std::string outPath  = "out/results.csv";
     std::string expName  = "order_sweep";
+    bool runAll = true;          // suite curada por padrao
+    bool doValidate = true;
+    bool sweepFlagsGiven = false;
 
     for (int i = 1; i < argc; i++) {
         std::string f = argv[i];
@@ -305,54 +440,70 @@ int main(int argc, char** argv) {
             if (i + 1 >= argc) { std::cerr << "falta valor para " << f << "\n"; std::exit(2); }
             return argv[++i];
         };
-        if      (f == "--orders")   orders   = parseList(next());
-        else if (f == "--sizes")    sizes    = parseList(next());
-        else if (f == "--patterns") patterns = parseStrList(next());
-        else if (f == "--caches")   caches   = parseList(next());
+        if      (f == "--orders")   { orders=parseList(next());        sweepFlagsGiven=true; }
+        else if (f == "--sizes")    { sizes=parseList(next());         sweepFlagsGiven=true; }
+        else if (f == "--patterns") { patterns=parseStrList(next());   sweepFlagsGiven=true; }
+        else if (f == "--caches")   { caches=parseList(next());        sweepFlagsGiven=true; }
+        else if (f == "--families") { families=parseFamilies(next());  sweepFlagsGiven=true; }
+        else if (f == "--reuse")    { reuses=[&]{auto l=parseList(next());std::vector<int>r;for(long x:l)r.push_back((int)x);return r;}(); sweepFlagsGiven=true; }
         else if (f == "--del-frac") delFraction = std::stod(next());
         else if (f == "--search-q") searchQ  = std::stol(next());
         else if (f == "--seed")     seed     = (unsigned)std::stol(next());
         else if (f == "--out")      outPath  = next();
-        else if (f == "--exp")      expName  = next();
+        else if (f == "--exp")      { expName = next(); sweepFlagsGiven = true; }
+        else if (f == "--no-validate") doValidate = false;
+        else if (f == "--only-validate") { runAll = false; sweepFlagsGiven = false; }
         else { std::cerr << "flag desconhecida: " << f << "\n"; std::exit(2); }
     }
+    if (sweepFlagsGiven) runAll = false;   // flags explicitas -> uma varredura
 
-    // Garante que as pastas existam (senao a criacao do .dat falha em silencio,
-    // as leituras devolvem registros com 'n' lixo e o laco varre fora dos
-    // limites -> segfault). Cria "arvores/" (onde vivem os .dat) e a pasta do CSV.
     namespace fs = std::filesystem;
     std::error_code ec;
     fs::create_directories("arvores", ec);
-    { fs::path op(outPath); if (op.has_parent_path()) fs::create_directories(op.parent_path(), ec); }
+    fs::path op(outPath);
+    std::string outDir = op.has_parent_path() ? op.parent_path().string() : ".";
+    fs::create_directories(outDir, ec);
+
+    // ---- FASE 1: validacao ----
+    std::map<std::pair<int,int>, bool> validOf;
+    if (doValidate) {
+        // valida em todas as ordens que serao usadas, nas duas familias, reuso on/off
+        std::vector<long> valOrders = {3,4,5,8,16,32,64,128,256};
+        std::vector<Family> valFams = {Family::Reactive, Family::Preemptive};
+        std::vector<int> valReuse = {1,0};
+        validOf = runValidation(valOrders, valFams, valReuse, seed, outDir);
+    }
+
+    bool onlyValidate = (!runAll && !sweepFlagsGiven);
+    if (onlyValidate) { std::cerr << "(--only-validate) sem benchmarks.\n"; return 0; }
 
     std::ofstream os(outPath);
     if (!os) { std::cerr << "nao abriu " << outPath << "\n"; return 1; }
     emitHeader(os);
 
-    std::map<long, bool> validOf;
-    for (long o : orders) {
-        bool v = dispatchProbe((int)o, seed, 4000, 4);
-        validOf[o] = v;
-        std::cerr << "[probe] ordem " << o << ": " << (v ? "VALIDA" : "INVALIDA") << "\n";
+    if (runAll) {
+        // ---- Suite curada (defaults modestos; escale com flags p/ o estudo final) ----
+        // 1) Varredura de ORDEM (familia reativa, reuso on): altura e I/O vs m.
+        runSweep(os, "order_sweep", {3,4,8,16,32,64,128,256}, {100000},
+                 {"seq","rand"}, {3}, {Family::Reactive}, {1},
+                 delFraction, searchQ, seed, validOf);
+        // 2) Varredura de N (poucas ordens): escalabilidade 1e3..1e5 (mude p/ 1e6).
+        runSweep(os, "size_sweep", {8,100}, {1000,10000,100000},
+                 {"seq","rand"}, {3}, {Family::Reactive}, {1},
+                 delFraction, searchQ, seed, validOf);
+        // 3) Comparacao de FAMILIAS (preemptiva x reativa), m>=4.
+        runSweep(os, "family_compare", {4,8,16,32,128}, {100000},
+                 {"seq","rand"}, {3}, {Family::Reactive, Family::Preemptive}, {1},
+                 delFraction, searchQ, seed, validOf);
+        // 4) Reaproveitamento de nos: reuso on x off (ocupacao apos remocoes).
+        runSweep(os, "reuse_compare", {3,4,8,32,100}, {100000},
+                 {"rand"}, {3}, {Family::Reactive}, {1,0},
+                 delFraction, searchQ, seed, validOf);
+    } else {
+        runSweep(os, expName, orders, sizes, patterns, caches, families, reuses,
+                 delFraction, searchQ, seed, validOf);
     }
 
-    long total = (long)orders.size() * sizes.size() * patterns.size() * caches.size();
-    long done = 0;
-    for (long o : orders)
-        for (long n : sizes)
-            for (const auto& p : patterns)
-                for (long cache : caches) {
-                    Cfg c;
-                    c.order = (int)o; c.n = n; c.pattern = p; c.cache = (int)cache;
-                    c.delFraction = delFraction;
-                    c.searchQ = std::min<long>(searchQ, n * 2);
-                    c.seed = seed; c.valid = validOf[o]; c.exp = expName;
-                    std::cerr << "[run " << (++done) << "/" << total << "] order=" << o
-                              << " n=" << n << " pattern=" << p << " cache=" << cache
-                              << (c.valid ? "" : "  (INVALIDA)") << "\n";
-                    dispatch(os, c);
-                    os.flush();
-                }
     std::cerr << "OK -> " << outPath << "\n";
     return 0;
 }

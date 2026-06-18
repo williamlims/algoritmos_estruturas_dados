@@ -87,6 +87,29 @@ BufferPool<KeyType, ORDER>::allocate() {
 
 template <typename KeyType, int ORDER>
 typename BufferPool<KeyType, ORDER>::Node*
+BufferPool<KeyType, ORDER>::allocateAt(int diskIdx) {
+    // Remove copia obsoleta do slot, se cacheada (sem writeback: foi liberado).
+    auto it = cache_.find(diskIdx);
+    if (it != cache_.end()) { delete it->second; cache_.erase(it); }
+    Node* node = new Node();        // zerado (n=0, filhos=0), dirty=true
+    node->diskIdx = diskIdx;
+    cache_[diskIdx] = node;
+    touchLRU(diskIdx);
+    trimCache();
+    return node;
+}
+
+template <typename KeyType, int ORDER>
+void BufferPool<KeyType, ORDER>::evict(int diskIdx) {
+    auto it = cache_.find(diskIdx);
+    if (it != cache_.end()) { delete it->second; cache_.erase(it); }
+    auto lp = lruPos_.find(diskIdx);
+    if (lp != lruPos_.end()) { lruOrder_.erase(lp->second); lruPos_.erase(lp); }
+    pinCount_.erase(diskIdx);
+}
+
+template <typename KeyType, int ORDER>
+typename BufferPool<KeyType, ORDER>::Node*
 BufferPool<KeyType, ORDER>::fetch(int diskIdx) {
     auto it = cache_.find(diskIdx);
     if (it != cache_.end()) {        // cache hit: nenhum acesso a disco

@@ -39,6 +39,15 @@ public:
     // Cria um no novo (em RAM), ja com diskIdx reservado, e o insere no cache.
     Node* allocate();
 
+    // Reaproveita um slot de disco JA EXISTENTE (vindo de uma free-list): cria
+    // um no zerado preso a 'diskIdx', descartando qualquer copia obsoleta desse
+    // slot no cache (sem writeback). Usado pela B-Tree para reciclar nos.
+    Node* allocateAt(int diskIdx);
+
+    // Descarta um no do cache SEM gravar em disco (o conteudo foi liberado pela
+    // arvore). Limpa tambem entradas de LRU e de pinagem desse slot.
+    void evict(int diskIdx);
+
     // Devolve o no de indice diskIdx: cache hit, ou leitura de disco (miss).
     Node* fetch(int diskIdx);
 
